@@ -1,2 +1,47 @@
-MMQA/
-run/
+# Local datasets and copied benchmark resources
+/MMQA/
+/Data/
+/run/
+/Run_local/resource/
+
+# Generated documents and vector indexes
+/Run_local/documents/
+/Run_local/embeddings/
+
+# Run outputs and intermediate logs
+/Run_local/log_*/
+/Run_local/uncompleted_instances_*.txt
+/Run_local/cost.json
+/Run_local/cost.json.lock
+
+# Credentials and local secrets
+.env
+.env.*
+!/.env.example
+/Run_local/bigquery_credentials/
+/Run_local/snowflake_credential/
+*.pem
+*.key
+*credentials*.json
+
+# Python caches and test artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local environments
+.venv/
+venv/
+env/
+.conda/
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

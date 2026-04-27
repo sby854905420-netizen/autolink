@@ -1,10 +1,12 @@
 import json
 import os
 
+from utils import get_mmqa_data_dir
+
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(BASE_DIR)
-MMQA_SCHEMA_PATH = os.path.join(PROJECT_ROOT, "MMQA", "db_info.json")
+MMQA_SCHEMA_PATH = os.path.join(get_mmqa_data_dir(), "db_info.json")
 GLOBAL_DB_NAME = "mmqa_global"
 
 

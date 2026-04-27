@@ -20,13 +20,14 @@ from utils import *
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(BASE_DIR)
-MMQA_SQLITE_DIR = os.path.join(PROJECT_ROOT, "MMQA", "Sqlite_database")
+MMQA_SQLITE_DIR = os.path.join(get_mmqa_data_dir(), "Sqlite_database")
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "ministral-3:14b")
 QUALIFIED_TABLE_PATTERN = re.compile(r'"([A-Za-z0-9_]+)\.([A-Za-z0-9_]+)"')
 QUOTED_DB_TABLE_PATTERN = re.compile(r'"([A-Za-z0-9_]+)"\s*\.\s*"([A-Za-z0-9_]+)"')
+QUOTED_DB_UNQUOTED_TABLE_PATTERN = re.compile(r'"([A-Za-z0-9_]+)"\s*\.\s*([A-Za-z0-9_]+)\b')
 QUOTED_PRAGMA_PATTERN = re.compile(r'"([A-Za-z0-9_]+)"\s*\.\s*pragma_table_info\s*\(', re.IGNORECASE)
-UNQUOTED_DB_TABLE_PATTERN = re.compile(r'(?<![\w"])\\b([A-Za-z0-9_]+)\.([A-Za-z0-9_]+)\\b')
+UNQUOTED_DB_TABLE_PATTERN = re.compile(r'(?<![\w"])\b([A-Za-z0-9_]+)\.([A-Za-z0-9_]+)\b')
 
 sqlite_lock = threading.Lock()
 AVAILABLE_DB_IDS = {
@@ -73,6 +74,11 @@ def extract_referenced_db_ids(sql: str):
     db_ids = set()
 
     for match in QUOTED_DB_TABLE_PATTERN.finditer(sql):
+        db_id = match.group(1)
+        if db_id in AVAILABLE_DB_IDS:
+            db_ids.add(db_id)
+
+    for match in QUOTED_DB_UNQUOTED_TABLE_PATTERN.finditer(sql):
         db_id = match.group(1)
         if db_id in AVAILABLE_DB_IDS:
             db_ids.add(db_id)

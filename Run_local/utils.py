@@ -4,6 +4,23 @@ import re
 
 DEFAULT_DATASET_NAME = "mmqa"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(BASE_DIR)
+
+
+def get_mmqa_data_dir() -> str:
+    configured_path = os.environ.get("MMQA_DATA_DIR")
+    if configured_path:
+        return os.path.abspath(configured_path)
+
+    candidates = [
+        os.path.join(PROJECT_ROOT, "Data", "MMQA"),
+        os.path.join(PROJECT_ROOT, "MMQA"),
+    ]
+    for candidate in candidates:
+        if os.path.isdir(candidate):
+            return candidate
+
+    return candidates[0]
 
 
 def get_dataset_file(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
