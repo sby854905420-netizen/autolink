@@ -1,12 +1,13 @@
+import argparse
 import json
 import os
+from typing import Optional
 
-from utils import get_mmqa_data_dir
+from utils import DEFAULT_DATASET_NAME, ensure_dir, get_documents_dir, require_mmqa_schema_file
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(BASE_DIR)
-MMQA_SCHEMA_PATH = os.path.join(get_mmqa_data_dir(), "db_info.json")
 GLOBAL_DB_NAME = "mmqa_global"
 
 
@@ -14,8 +15,12 @@ def qualify_table_name(db_id: str, table_name: str) -> str:
     return f"{db_id}.{table_name}"
 
 
-def generate_documents(output_path: str = "documents"):
-    with open(MMQA_SCHEMA_PATH, "r", encoding="utf-8") as f:
+def generate_documents(dataset_name: str = DEFAULT_DATASET_NAME, output_path: Optional[str] = None):
+    schema_path = require_mmqa_schema_file(dataset_name)
+    if output_path is None:
+        output_path = get_documents_dir(dataset_name)
+
+    with open(schema_path, "r", encoding="utf-8") as f:
         mmqa_schemas = json.load(f)
 
     documents = {GLOBAL_DB_NAME: {}}
@@ -79,12 +84,19 @@ def generate_documents(output_path: str = "documents"):
                 )
                 documents[GLOBAL_DB_NAME][qualified_table_name]["columns"][column_name] = desc
 
-    os.makedirs(output_path, exist_ok=True)
+    ensure_dir(output_path)
     output_file = os.path.join(output_path, "localdb.json")
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(documents, f, indent=4, ensure_ascii=False)
 
+    print(f"Documents saved to {output_file}")
+
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dataset_name", type=str, default=DEFAULT_DATASET_NAME)
+    parser.add_argument("--output_path", type=str, default=None)
+    args = parser.parse_args()
+
     print("Generate documents for MMQA global SQLite space...")
-    generate_documents(output_path="documents")
+    generate_documents(dataset_name=args.dataset_name, output_path=args.output_path)

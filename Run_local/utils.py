@@ -1,20 +1,54 @@
-import os
 import json
+import os
 import re
+from datetime import datetime
 
-DEFAULT_DATASET_NAME = "mmqa"
+DEFAULT_DATASET_NAME = "MMQA"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(BASE_DIR)
 
+DATASET_CONFIGS = {
+    "mmqa": {
+        "dir_name": "MMQA",
+        "data_file": "mmqa_data.json",
+        "instance_prefix": "mmqa",
+    },
+}
 
-def get_mmqa_data_dir() -> str:
-    configured_path = os.environ.get("MMQA_DATA_DIR")
+
+def normalize_dataset_name(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
+    return (dataset_name or DEFAULT_DATASET_NAME).strip().lower()
+
+
+def require_supported_dataset(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
+    dataset_key = normalize_dataset_name(dataset_name)
+    if dataset_key not in DATASET_CONFIGS:
+        supported = ", ".join(config["dir_name"] for config in DATASET_CONFIGS.values())
+        raise ValueError(f"Unsupported dataset: {dataset_name}. Supported datasets: {supported}")
+    return DATASET_CONFIGS[dataset_key]["dir_name"]
+
+
+def get_dataset_dir_name(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
+    return require_supported_dataset(dataset_name)
+
+
+def get_dataset_data_dir(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
+    dataset_key = normalize_dataset_name(dataset_name)
+    require_supported_dataset(dataset_name)
+
+    if dataset_key == "mmqa":
+        configured_path = os.environ.get("MMQA_DATA_DIR")
+        if configured_path:
+            return os.path.abspath(configured_path)
+
+    configured_path = os.environ.get("DATASET_DATA_DIR")
     if configured_path:
         return os.path.abspath(configured_path)
 
+    dir_name = get_dataset_dir_name(dataset_name)
     candidates = [
-        os.path.join(PROJECT_ROOT, "Data", "MMQA"),
-        os.path.join(PROJECT_ROOT, "MMQA"),
+        os.path.join(PROJECT_ROOT, "Data", dir_name),
+        os.path.join(PROJECT_ROOT, dir_name),
     ]
     for candidate in candidates:
         if os.path.isdir(candidate):
@@ -23,28 +57,106 @@ def get_mmqa_data_dir() -> str:
     return candidates[0]
 
 
+def get_mmqa_data_dir() -> str:
+    return get_dataset_data_dir("MMQA")
+
+
 def get_dataset_file(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
-    return os.path.join(BASE_DIR, f"{dataset_name}_data.json")
+    dataset_key = normalize_dataset_name(dataset_name)
+    require_supported_dataset(dataset_name)
+    data_file = DATASET_CONFIGS[dataset_key]["data_file"]
+    return os.path.join(get_dataset_data_dir(dataset_name), data_file)
+
+
+def require_file(path: str, label: str) -> str:
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"{label} not found: {path}")
+    return path
+
+
+def ensure_dir(path: str) -> str:
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def require_dataset_data_dir(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
+    data_dir = get_dataset_data_dir(dataset_name)
+    if not os.path.isdir(data_dir):
+        raise FileNotFoundError(f"Dataset directory not found: {data_dir}")
+    return data_dir
+
+
+def require_dataset_file(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
+    return require_file(get_dataset_file(dataset_name), "Dataset data file")
+
+
+def require_mmqa_schema_file(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
+    schema_file = os.path.join(require_dataset_data_dir(dataset_name), "db_info.json")
+    return require_file(schema_file, "MMQA schema file")
+
+
+def get_documents_dir(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
+    return os.path.join(get_dataset_data_dir(dataset_name), "documents")
+
+
+def get_documents_file(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
+    return os.path.join(get_documents_dir(dataset_name), "localdb.json")
+
+
+def get_local_embedding_dir(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
+    return os.path.join(get_dataset_data_dir(dataset_name), "embeddings", "localdb")
+
+
+def require_local_embedding_index(dataset_name: str = DEFAULT_DATASET_NAME, db_name: str = "mmqa_global") -> str:
+    index_file = os.path.join(get_local_embedding_dir(dataset_name), db_name, "index.faiss")
+    return require_file(index_file, "Local embedding index")
+
+
+def safe_path_component(value: str) -> str:
+    return re.sub(r"[^A-Za-z0-9_.:-]+", "_", value.strip()).strip("_") or "unknown"
+
+
+def default_log_path(
+    dataset_name: str = DEFAULT_DATASET_NAME,
+    model_name: str = "ministral-3:14b",
+    time_id: str | None = None,
+) -> str:
+    dataset_dir_name = get_dataset_dir_name(dataset_name)
+    model_dir_name = safe_path_component(model_name)
+    run_id = safe_path_component(time_id or datetime.now().strftime("%Y%m%d_%H%M%S"))
+    return os.path.join(PROJECT_ROOT, "Log", dataset_dir_name, model_dir_name, run_id)
+
+
+def prepare_log_dir(
+    log_path: str | None = None,
+    dataset_name: str = DEFAULT_DATASET_NAME,
+    model_name: str = "ministral-3:14b",
+    time_id: str | None = None,
+) -> str:
+    resolved_log_path = os.path.abspath(log_path or default_log_path(dataset_name, model_name, time_id))
+    ensure_dir(resolved_log_path)
+    return resolved_log_path
 
 
 def load_dataset_data(dataset_name: str = DEFAULT_DATASET_NAME):
-    data_file = get_dataset_file(dataset_name)
+    data_file = require_dataset_file(dataset_name)
     with open(data_file, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def is_dataset_instance(instance_id: str, dataset_name: str = DEFAULT_DATASET_NAME) -> bool:
-    return instance_id.startswith(f"{dataset_name}_")
+    dataset_key = normalize_dataset_name(dataset_name)
+    instance_prefix = DATASET_CONFIGS.get(dataset_key, {}).get("instance_prefix", dataset_key)
+    return instance_id.startswith(f"{instance_prefix}_")
 
 
 def determine_embedding_path(instance_id: str, dataset_name: str = DEFAULT_DATASET_NAME) -> str:
-    base_path = "embeddings"
     if instance_id.startswith("bq") or instance_id.startswith("ga"):
-        embed_path = os.path.join(base_path, "bigquery")
+        embed_path = os.path.join(PROJECT_ROOT, "embeddings", "bigquery")
     elif instance_id.startswith("sf"):
-        embed_path = os.path.join(base_path, "snowflake")
+        embed_path = os.path.join(PROJECT_ROOT, "embeddings", "snowflake")
     elif instance_id.startswith("local") or is_dataset_instance(instance_id, dataset_name):
-        embed_path = os.path.join(base_path, "localdb")
+        embed_path = os.path.join(get_dataset_data_dir(dataset_name), "embeddings", "localdb")
     else:
         raise ValueError(f"Unknown instance_id: {instance_id}")
     return embed_path

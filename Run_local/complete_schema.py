@@ -463,7 +463,8 @@ def complete_schema(log_path, dataset_name, num_threads=3):
 
     print(f"Unfinished instances: {len(clean_instance_ids)}")
 
-    with open(f"uncompleted_instances_{dataset_name}.txt", "w", encoding="utf-8") as f:
+    uncompleted_path = os.path.join(log_path, f"uncompleted_instances_{dataset_name}.txt")
+    with open(uncompleted_path, "w", encoding="utf-8") as f:
         for instance_id in clean_instance_ids:
             f.write(instance_id + "\n")
 

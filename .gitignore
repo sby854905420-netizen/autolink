@@ -9,6 +9,7 @@
 /Run_local/embeddings/
 
 # Run outputs and intermediate logs
+/Log/
 /Run_local/log_*/
 /Run_local/uncompleted_instances_*.txt
 /Run_local/cost.json

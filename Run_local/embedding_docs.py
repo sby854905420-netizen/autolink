@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 
@@ -6,12 +7,21 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
 
+from utils import (
+    DEFAULT_DATASET_NAME,
+    ensure_dir,
+    get_documents_file,
+    get_local_embedding_dir,
+    require_file,
+)
+
 
 MODEL_NAME = os.environ.get("SENTENCE_TRANSFORMER_MODEL", "BAAI/bge-large-en-v1.5")
 
 
 def embed_documents(input_file: str, embed_path: str, batch_size: int = 32):
-    os.makedirs(embed_path, exist_ok=True)
+    require_file(input_file, "Document file")
+    ensure_dir(embed_path)
 
     model = SentenceTransformer(MODEL_NAME)
 
@@ -69,6 +79,25 @@ def embed_documents(input_file: str, embed_path: str, batch_size: int = 32):
             json.dump(metadata_mapping, f_meta, ensure_ascii=False, indent=2)
 
 
+def get_default_input_file(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
+    return get_documents_file(dataset_name)
+
+
+def get_default_embed_path(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
+    return get_local_embedding_dir(dataset_name)
+
+
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dataset_name", type=str, default=DEFAULT_DATASET_NAME)
+    parser.add_argument("--input_file", type=str, default=None)
+    parser.add_argument("--embed_path", type=str, default=None)
+    parser.add_argument("--batch_size", type=int, default=1024)
+    args = parser.parse_args()
+
+    input_file = args.input_file or get_default_input_file(args.dataset_name)
+    embed_path = args.embed_path or get_default_embed_path(args.dataset_name)
+
     print("Embedding MMQA global SQLite documents...")
-    embed_documents(os.path.join("documents", "localdb.json"), "embeddings/localdb", batch_size=1024)
+    embed_documents(input_file, embed_path, batch_size=args.batch_size)
+    print(f"Embeddings saved to {embed_path}")
