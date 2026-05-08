@@ -128,6 +128,14 @@ def process_instance_batch(batch_instances, log_path, dataset_name):
             question = info["question"]
             db_name = info["db_name"]
             knowledge_data = ""
+            ek_file = spider2_data[instance_id].get("external_knowledge", "")
+            if ek_file:
+                ek_path = resolve_external_knowledge_path(dataset_name, ek_file)
+                if ek_path:
+                    with open(ek_path, "r", encoding="utf-8") as ef:
+                        knowledge_data = ef.read()
+                else:
+                    print(f"[Warning] External knowledge file not found: {ek_file}")
             db_documents = documents[db_name]
 
             with open(f"{schema_path}/{instance_id}.txt", "r", encoding="utf-8") as f:

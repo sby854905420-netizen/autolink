@@ -276,14 +276,13 @@ def resolve_external_knowledge_path(dataset_name: str, external_knowledge: str |
     if not external_knowledge:
         return None
     if os.path.isabs(external_knowledge):
-        return external_knowledge if os.path.exists(external_knowledge) else None
+        return external_knowledge if os.path.isfile(external_knowledge) else None
 
     candidates = [
-        os.path.join(get_dataset_data_dir(dataset_name), "documents", external_knowledge),
-        os.path.join(PROJECT_ROOT, "resource", "documents", external_knowledge),
+        os.path.join(get_dataset_data_dir(dataset_name), "external_knowledge", external_knowledge),
     ]
     for candidate in candidates:
-        if os.path.exists(candidate):
+        if os.path.isfile(candidate):
             return candidate
     return None
 
