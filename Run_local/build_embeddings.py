@@ -6,7 +6,7 @@ from utils import (
     DEFAULT_DATASET_NAME,
     get_documents_file,
     get_local_embedding_dir,
-    require_mmqa_schema_file,
+    require_schema_file,
     require_supported_dataset,
 )
 
@@ -32,7 +32,7 @@ def build_embeddings(
     embeddings_path: str | None = None,
 ):
     dataset_name = require_supported_dataset(dataset_name)
-    require_mmqa_schema_file(dataset_name)
+    require_schema_file(dataset_name)
 
     from embedding_docs import embed_documents
     from generate_docs import generate_documents

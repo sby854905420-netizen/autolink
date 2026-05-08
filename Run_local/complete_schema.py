@@ -4,104 +4,19 @@ import multiprocessing as mp
 import os
 import re
 import shutil
-import sqlite3
-import threading
-from urllib import error as urllib_error
-from urllib import request as urllib_request
 
-import pandas as pd
 from tqdm import tqdm
 
 from cost_tool import SampleCostRecorder
 from config import *
+from llm_backends import chat_with_model
 from retrieve_topk_schema import get_next_k_results
+from sql_backends import thread_safe_sql_execution
 from utils import *
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(BASE_DIR)
-MMQA_SQLITE_DIR = os.path.join(get_mmqa_data_dir(), "Sqlite_database")
-OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "ministral-3:14b")
-QUALIFIED_TABLE_PATTERN = re.compile(r'"([A-Za-z0-9_]+)\.([A-Za-z0-9_]+)"')
-QUOTED_DB_TABLE_PATTERN = re.compile(r'"([A-Za-z0-9_]+)"\s*\.\s*"([A-Za-z0-9_]+)"')
-QUOTED_DB_UNQUOTED_TABLE_PATTERN = re.compile(r'"([A-Za-z0-9_]+)"\s*\.\s*([A-Za-z0-9_]+)\b')
-QUOTED_PRAGMA_PATTERN = re.compile(r'"([A-Za-z0-9_]+)"\s*\.\s*pragma_table_info\s*\(', re.IGNORECASE)
-UNQUOTED_DB_TABLE_PATTERN = re.compile(r'(?<![\w"])\b([A-Za-z0-9_]+)\.([A-Za-z0-9_]+)\b')
-
-sqlite_lock = threading.Lock()
-AVAILABLE_DB_IDS = {
-    os.path.splitext(filename)[0]
-    for filename in os.listdir(MMQA_SQLITE_DIR)
-    if filename.endswith(".sqlite")
-}
-
-
-def chat_with_ollama(messages):
-    payload = {
-        "model": OLLAMA_MODEL,
-        "messages": messages,
-        "stream": False,
-    }
-
-    request = urllib_request.Request(
-        f"{OLLAMA_BASE_URL}/api/chat",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-    )
-
-    try:
-        with urllib_request.urlopen(request, timeout=600) as response:
-            response_data = json.loads(response.read().decode("utf-8"))
-    except urllib_error.HTTPError as e:
-        body = e.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"Ollama HTTP error {e.code}: {body}") from e
-    except urllib_error.URLError as e:
-        raise RuntimeError(f"Failed to connect to Ollama at {OLLAMA_BASE_URL}: {e}") from e
-
-    message = response_data.get("message", {})
-    content = message.get("content", "")
-    if not content:
-        raise RuntimeError(f"Ollama returned an empty response: {response_data}")
-    return content, response_data
-
-
-def normalize_attached_table_references(sql: str) -> str:
-    return QUALIFIED_TABLE_PATTERN.sub(r'"\1"."\2"', sql)
-
-
-def extract_referenced_db_ids(sql: str):
-    db_ids = set()
-
-    for match in QUOTED_DB_TABLE_PATTERN.finditer(sql):
-        db_id = match.group(1)
-        if db_id in AVAILABLE_DB_IDS:
-            db_ids.add(db_id)
-
-    for match in QUOTED_DB_UNQUOTED_TABLE_PATTERN.finditer(sql):
-        db_id = match.group(1)
-        if db_id in AVAILABLE_DB_IDS:
-            db_ids.add(db_id)
-
-    for match in QUOTED_PRAGMA_PATTERN.finditer(sql):
-        db_id = match.group(1)
-        if db_id in AVAILABLE_DB_IDS:
-            db_ids.add(db_id)
-
-    for match in UNQUOTED_DB_TABLE_PATTERN.finditer(sql):
-        db_id = match.group(1)
-        if db_id in AVAILABLE_DB_IDS:
-            db_ids.add(db_id)
-
-    return sorted(db_ids)
-
-
-def build_sqlite_connection(db_ids):
-    conn = sqlite3.connect(":memory:", check_same_thread=False)
-    for db_id in db_ids:
-        db_path = os.path.join(MMQA_SQLITE_DIR, f"{db_id}.sqlite")
-        conn.execute(f'ATTACH DATABASE ? AS "{db_id}"', (db_path,))
-    return conn
 
 
 def backup_instance_state(instance_id: str, log_path: str):
@@ -139,40 +54,11 @@ def restore_instance_state(instance_id: str, log_path: str):
         shutil.copy2(backup_status_file, status_file)
 
 
-def thread_safe_sql_execution(instance_id, sql, db_name, dataset_name):
-    if instance_id.startswith("local") or is_dataset_instance(instance_id, dataset_name):
-        with sqlite_lock:
-            return sql_execution(instance_id, sql, db_name, dataset_name)
-    return sql_execution(instance_id, sql, db_name, dataset_name)
-
-
-def sql_execution(instance_id, sql, db_name, dataset_name):
-    if not (instance_id.startswith("local") or is_dataset_instance(instance_id, dataset_name)):
-        return "error", f"Unsupported instance_id for Run_local: {instance_id}"
-
-    normalized_sql = normalize_attached_table_references(sql)
-    referenced_db_ids = extract_referenced_db_ids(normalized_sql)
-    if not referenced_db_ids:
-        return "error", (
-            "No database ids were found in the SQL query. "
-            "Use full table names like \"db_id\".\"table_name\" in the global MMQA space."
-        )
-    if len(referenced_db_ids) > 10:
-        return "error", (
-            f"The SQL query references {len(referenced_db_ids)} databases, "
-            "which exceeds SQLite's ATTACH limit of 10."
-        )
-
-    conn = build_sqlite_connection(referenced_db_ids)
-    try:
-        df = pd.read_sql_query(normalized_sql, conn)
-        if df.empty:
-            return "empty", "No data found for the specified query."
-        return "success", df
-    except Exception as e:
-        return "error", f"Error occurred while fetching data: {e}"
-    finally:
-        conn.close()
+def get_sql_prompt_config(dataset_name: str):
+    sql_dialect = get_sql_dialect(dataset_name)
+    if sql_dialect == "snowflake":
+        return SNOWFLAKE, SNOWFLAKE_DIALECT_OPTIMIZATION
+    return SQLITE, SQLITE_DIALECT_OPTIMIZATION
 
 
 def remove_column_values(schema_text):
@@ -228,9 +114,8 @@ def process_instance_batch(batch_instances, log_path, dataset_name):
             if not (instance_id.startswith("local") or is_dataset_instance(instance_id, dataset_name)):
                 raise ValueError(f"Unknown instance ID: {instance_id}")
 
-            documents_path = "documents/localdb.json"
-            sql_type = SQLITE
-            sql_optimization = SQLITE_DIALECT_OPTIMIZATION
+            documents_path = get_documents_file(dataset_name)
+            sql_type, sql_optimization = get_sql_prompt_config(dataset_name)
 
             with open(documents_path, "r", encoding="utf-8") as f:
                 documents = json.load(f)
@@ -287,7 +172,7 @@ def process_instance_batch(batch_instances, log_path, dataset_name):
                     break
 
                 try:
-                    model_output, response_data = chat_with_ollama(messages)
+                    model_output, response_data = chat_with_model(messages)
                     cost_recorder.add_response_usage(response_data)
                 except Exception as e:
                     model_output = f"Model call failed: {e}"
@@ -422,6 +307,12 @@ def process_instance_batch(batch_instances, log_path, dataset_name):
 
 
 def complete_schema(log_path, dataset_name, num_threads=3):
+    if num_threads > 1:
+        print(
+            "Warning: Hugging Face backend loads one chat model per process. "
+            "Use NUM_THREADS=1 unless you have enough GPU memory for multiple copies."
+        )
+
     status_dir = os.path.join(log_path, "status")
 
     model_output_path = os.path.join(log_path, "model_output")

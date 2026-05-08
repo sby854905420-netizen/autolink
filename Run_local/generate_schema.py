@@ -5,7 +5,13 @@ import re
 import argparse
 
 from cost_tool import SampleCostRecorder
-from utils import DEFAULT_DATASET_NAME, is_dataset_instance, load_dataset_data
+from utils import (
+    DEFAULT_DATASET_NAME,
+    get_documents_file,
+    is_dataset_instance,
+    load_dataset_data,
+    resolve_external_knowledge_path,
+)
 
 def extract_description(description_text):
     lines = description_text.strip().split("\n")
@@ -272,7 +278,7 @@ def generate_schema_prompt(
             candidates = json.load(f)
         os.makedirs(f"{log_path}/final_schema_prompts", exist_ok=True)
     
-    with open("documents/localdb.json", "r", encoding="utf-8") as f:
+    with open(get_documents_file(dataset_name), "r", encoding="utf-8") as f:
         localdb_data = json.load(f)
 
     schema_prompt = ""
@@ -372,8 +378,8 @@ def generate_schema_prompt(
                 if instance_id in spider2_data:
                     ek_file = spider2_data[instance_id].get("external_knowledge", "")
                     if ek_file:
-                        ek_path = os.path.join("resource", "documents", ek_file)
-                        if os.path.exists(ek_path):
+                        ek_path = resolve_external_knowledge_path(dataset_name, ek_file)
+                        if ek_path:
                             with open(ek_path, "r", encoding="utf-8") as ef:
                                 ek_content = ef.read()
 
@@ -382,7 +388,7 @@ def generate_schema_prompt(
                                 + ek_content
                             )
                         else:
-                            print(f"[Warning] External knowledge file not found: {ek_path}")
+                            print(f"[Warning] External knowledge file not found: {ek_file}")
 
                 full_prompt = schema_prompt + external_text
                 with open(f"{log_path}/final_schema_prompts/{instance_id}.txt", "w", encoding="utf-8") as f:

@@ -9,18 +9,28 @@ from utils import (
     require_local_embedding_index,
     require_supported_dataset,
 )
-
-
-DEFAULT_OLLAMA_MODEL = "ministral-3:14b"
-DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434"
+from llm_backends import (
+    DEFAULT_HF_CONTEXT_LENGTH,
+    DEFAULT_HF_MAX_NEW_TOKENS,
+    DEFAULT_HF_MODEL_NAME,
+)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run the local AutoLink pipeline.")
     parser.add_argument("dataset", nargs="?", default=None)
     parser.add_argument("--dataset_name", default=None)
-    parser.add_argument("--ollama_model", default=os.environ.get("OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL))
-    parser.add_argument("--ollama_base_url", default=os.environ.get("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL))
+    parser.add_argument("--hf_model_name", default=os.environ.get("HF_MODEL_NAME", DEFAULT_HF_MODEL_NAME))
+    parser.add_argument(
+        "--hf_context_length",
+        type=int,
+        default=int(os.environ.get("HF_CONTEXT_LENGTH", str(DEFAULT_HF_CONTEXT_LENGTH))),
+    )
+    parser.add_argument(
+        "--hf_max_new_tokens",
+        type=int,
+        default=int(os.environ.get("HF_MAX_NEW_TOKENS", str(DEFAULT_HF_MAX_NEW_TOKENS))),
+    )
     parser.add_argument("--top_n", type=int, default=int(os.environ.get("TOP_N", "100")))
     parser.add_argument("--num_threads", type=int, default=int(os.environ.get("NUM_THREADS", "1")))
     parser.add_argument("--time_id", default=os.environ.get("TIME_ID"))
@@ -41,8 +51,9 @@ def reset_cost_files(log_path: str):
 
 def run_pipeline(
     dataset_name: str = DEFAULT_DATASET_NAME,
-    ollama_model: str = DEFAULT_OLLAMA_MODEL,
-    ollama_base_url: str = DEFAULT_OLLAMA_BASE_URL,
+    hf_model_name: str = DEFAULT_HF_MODEL_NAME,
+    hf_context_length: int = DEFAULT_HF_CONTEXT_LENGTH,
+    hf_max_new_tokens: int = DEFAULT_HF_MAX_NEW_TOKENS,
     top_n: int = 100,
     num_threads: int = 1,
     time_id: str | None = None,
@@ -52,13 +63,14 @@ def run_pipeline(
     require_dataset_file(dataset_name)
     require_local_embedding_index(dataset_name)
 
-    os.environ["OLLAMA_MODEL"] = ollama_model
-    os.environ["OLLAMA_BASE_URL"] = ollama_base_url
+    os.environ["HF_MODEL_NAME"] = hf_model_name
+    os.environ["HF_CONTEXT_LENGTH"] = str(hf_context_length)
+    os.environ["HF_MAX_NEW_TOKENS"] = str(hf_max_new_tokens)
 
     resolved_log_path = prepare_log_dir(
         log_path=log_path,
         dataset_name=dataset_name,
-        model_name=ollama_model,
+        model_name=hf_model_name,
         time_id=time_id,
     )
     reset_cost_files(resolved_log_path)
@@ -85,8 +97,9 @@ if __name__ == "__main__":
     try:
         run_pipeline(
             dataset_name=resolve_dataset_name(args),
-            ollama_model=args.ollama_model,
-            ollama_base_url=args.ollama_base_url,
+            hf_model_name=args.hf_model_name,
+            hf_context_length=args.hf_context_length,
+            hf_max_new_tokens=args.hf_max_new_tokens,
             top_n=args.top_n,
             num_threads=args.num_threads,
             time_id=args.time_id,

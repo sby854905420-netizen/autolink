@@ -11,7 +11,22 @@ DATASET_CONFIGS = {
     "mmqa": {
         "dir_name": "MMQA",
         "data_file": "mmqa_data.json",
-        "instance_prefix": "mmqa",
+        "instance_prefixes": ["mmqa_"],
+        "global_document_db_name": "mmqa_global",
+        "qualify_table_names": True,
+        "execution_backend": "sqlite",
+        "sql_dialect": "sqlite",
+    },
+    "spider2": {
+        "dir_name": "Spider2",
+        "data_file": "spider2_data.json",
+        "fallback_data_files": ["gold_sl.json"],
+        "instance_prefixes": ["sf"],
+        "global_document_db_name": "spider2_global",
+        "qualify_table_names": False,
+        "execution_backend": "snowflake",
+        "sql_dialect": "snowflake",
+        "credential_file": "snowflake_credential.json",
     },
 }
 
@@ -20,12 +35,16 @@ def normalize_dataset_name(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
     return (dataset_name or DEFAULT_DATASET_NAME).strip().lower()
 
 
-def require_supported_dataset(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
+def get_dataset_config(dataset_name: str = DEFAULT_DATASET_NAME) -> dict:
     dataset_key = normalize_dataset_name(dataset_name)
     if dataset_key not in DATASET_CONFIGS:
         supported = ", ".join(config["dir_name"] for config in DATASET_CONFIGS.values())
         raise ValueError(f"Unsupported dataset: {dataset_name}. Supported datasets: {supported}")
-    return DATASET_CONFIGS[dataset_key]["dir_name"]
+    return DATASET_CONFIGS[dataset_key]
+
+
+def require_supported_dataset(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
+    return get_dataset_config(dataset_name)["dir_name"]
 
 
 def get_dataset_dir_name(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
@@ -33,13 +52,12 @@ def get_dataset_dir_name(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
 
 
 def get_dataset_data_dir(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
-    dataset_key = normalize_dataset_name(dataset_name)
-    require_supported_dataset(dataset_name)
+    config = get_dataset_config(dataset_name)
 
-    if dataset_key == "mmqa":
-        configured_path = os.environ.get("MMQA_DATA_DIR")
-        if configured_path:
-            return os.path.abspath(configured_path)
+    specific_env_name = f"{config['dir_name'].upper()}_DATA_DIR"
+    configured_path = os.environ.get(specific_env_name)
+    if configured_path:
+        return os.path.abspath(configured_path)
 
     configured_path = os.environ.get("DATASET_DATA_DIR")
     if configured_path:
@@ -62,10 +80,14 @@ def get_mmqa_data_dir() -> str:
 
 
 def get_dataset_file(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
-    dataset_key = normalize_dataset_name(dataset_name)
-    require_supported_dataset(dataset_name)
-    data_file = DATASET_CONFIGS[dataset_key]["data_file"]
-    return os.path.join(get_dataset_data_dir(dataset_name), data_file)
+    config = get_dataset_config(dataset_name)
+    data_dir = get_dataset_data_dir(dataset_name)
+    data_files = [config["data_file"]] + config.get("fallback_data_files", [])
+    for data_file in data_files:
+        candidate = os.path.join(data_dir, data_file)
+        if os.path.isfile(candidate):
+            return candidate
+    return os.path.join(data_dir, config["data_file"])
 
 
 def require_file(path: str, label: str) -> str:
@@ -90,9 +112,14 @@ def require_dataset_file(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
     return require_file(get_dataset_file(dataset_name), "Dataset data file")
 
 
-def require_mmqa_schema_file(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
+def require_schema_file(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
     schema_file = os.path.join(require_dataset_data_dir(dataset_name), "db_info.json")
-    return require_file(schema_file, "MMQA schema file")
+    dataset_dir_name = get_dataset_dir_name(dataset_name)
+    return require_file(schema_file, f"{dataset_dir_name} schema file")
+
+
+def require_mmqa_schema_file(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
+    return require_schema_file(dataset_name)
 
 
 def get_documents_dir(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
@@ -107,9 +134,59 @@ def get_local_embedding_dir(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
     return os.path.join(get_dataset_data_dir(dataset_name), "embeddings", "localdb")
 
 
-def require_local_embedding_index(dataset_name: str = DEFAULT_DATASET_NAME, db_name: str = "mmqa_global") -> str:
-    index_file = os.path.join(get_local_embedding_dir(dataset_name), db_name, "index.faiss")
-    return require_file(index_file, "Local embedding index")
+def get_execution_backend(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
+    return get_dataset_config(dataset_name).get("execution_backend", "sqlite")
+
+
+def get_sql_dialect(dataset_name: str = DEFAULT_DATASET_NAME) -> str:
+    return get_dataset_config(dataset_name).get("sql_dialect", "sqlite")
+
+
+def get_credential_file(dataset_name: str = DEFAULT_DATASET_NAME) -> str | None:
+    credential_file = get_dataset_config(dataset_name).get("credential_file")
+    if not credential_file:
+        return None
+    configured_path = os.environ.get(f"{get_dataset_dir_name(dataset_name).upper()}_CREDENTIAL_FILE")
+    if configured_path:
+        return os.path.abspath(configured_path)
+    return os.path.join(PROJECT_ROOT, credential_file)
+
+
+def get_embedding_db_names(dataset_name: str = DEFAULT_DATASET_NAME) -> list[str]:
+    config = get_dataset_config(dataset_name)
+    global_db_name = config.get("global_document_db_name")
+    if global_db_name:
+        return [global_db_name]
+
+    schema_file = os.path.join(get_dataset_data_dir(dataset_name), "db_info.json")
+    if not os.path.isfile(schema_file):
+        return []
+
+    with open(schema_file, "r", encoding="utf-8") as f:
+        schemas = json.load(f)
+    return [schema["db_id"] for schema in schemas if schema.get("db_id")]
+
+
+def require_local_embedding_index(dataset_name: str = DEFAULT_DATASET_NAME, db_name: str | None = None) -> str:
+    embed_dir = get_local_embedding_dir(dataset_name)
+    db_names = [db_name] if db_name else get_embedding_db_names(dataset_name)
+    if not db_names:
+        raise FileNotFoundError(f"No embedding database names found for {dataset_name}")
+
+    missing = []
+    for name in db_names:
+        index_file = os.path.join(embed_dir, name, "index.faiss")
+        if not os.path.isfile(index_file):
+            missing.append(index_file)
+
+    if missing:
+        preview = ", ".join(missing[:5])
+        suffix = "" if len(missing) <= 5 else f", ... ({len(missing)} missing total)"
+        raise FileNotFoundError(f"Local embedding index not found: {preview}{suffix}")
+
+    if len(db_names) == 1:
+        return os.path.join(embed_dir, db_names[0], "index.faiss")
+    return embed_dir
 
 
 def safe_path_component(value: str) -> str:
@@ -138,28 +215,77 @@ def prepare_log_dir(
     return resolved_log_path
 
 
+def normalize_dataset_records(dataset_name: str, data):
+    dataset_key = normalize_dataset_name(dataset_name)
+    if dataset_key != "spider2":
+        return data
+
+    collection_id = get_dataset_config(dataset_name).get("global_document_db_name")
+
+    if isinstance(data, dict):
+        normalized = {}
+        for instance_id, item in data.items():
+            record = dict(item)
+            record.setdefault("id", instance_id)
+            record["db_name"] = collection_id or record.get("db_name") or record.get("db_id")
+            normalized[instance_id] = record
+        return normalized
+
+    normalized = {}
+    for item in data:
+        record = dict(item)
+        instance_id = record.get("id") or record.get("instance_id")
+        if not instance_id:
+            raise ValueError("Spider2 dataset item is missing 'id'")
+        record["db_name"] = collection_id or record.get("db_name") or record.get("db_id")
+        normalized[instance_id] = record
+    return normalized
+
+
 def load_dataset_data(dataset_name: str = DEFAULT_DATASET_NAME):
     data_file = require_dataset_file(dataset_name)
     with open(data_file, "r", encoding="utf-8") as f:
-        return json.load(f)
+        data = json.load(f)
+    return normalize_dataset_records(dataset_name, data)
 
 
 def is_dataset_instance(instance_id: str, dataset_name: str = DEFAULT_DATASET_NAME) -> bool:
-    dataset_key = normalize_dataset_name(dataset_name)
-    instance_prefix = DATASET_CONFIGS.get(dataset_key, {}).get("instance_prefix", dataset_key)
-    return instance_id.startswith(f"{instance_prefix}_")
+    config = get_dataset_config(dataset_name)
+    for prefix in config.get("instance_prefixes", []):
+        if instance_id.startswith(prefix):
+            return True
+    instance_prefix = config.get("instance_prefix")
+    if instance_prefix:
+        return instance_id.startswith(f"{instance_prefix}_")
+    return False
 
 
 def determine_embedding_path(instance_id: str, dataset_name: str = DEFAULT_DATASET_NAME) -> str:
-    if instance_id.startswith("bq") or instance_id.startswith("ga"):
+    if instance_id.startswith("local") or is_dataset_instance(instance_id, dataset_name):
+        embed_path = os.path.join(get_dataset_data_dir(dataset_name), "embeddings", "localdb")
+    elif instance_id.startswith("bq") or instance_id.startswith("ga"):
         embed_path = os.path.join(PROJECT_ROOT, "embeddings", "bigquery")
     elif instance_id.startswith("sf"):
         embed_path = os.path.join(PROJECT_ROOT, "embeddings", "snowflake")
-    elif instance_id.startswith("local") or is_dataset_instance(instance_id, dataset_name):
-        embed_path = os.path.join(get_dataset_data_dir(dataset_name), "embeddings", "localdb")
     else:
         raise ValueError(f"Unknown instance_id: {instance_id}")
     return embed_path
+
+
+def resolve_external_knowledge_path(dataset_name: str, external_knowledge: str | None) -> str | None:
+    if not external_knowledge:
+        return None
+    if os.path.isabs(external_knowledge):
+        return external_knowledge if os.path.exists(external_knowledge) else None
+
+    candidates = [
+        os.path.join(get_dataset_data_dir(dataset_name), "documents", external_knowledge),
+        os.path.join(PROJECT_ROOT, "resource", "documents", external_knowledge),
+    ]
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            return candidate
+    return None
 
 def get_subdir(dir_path):
     subdirs = [

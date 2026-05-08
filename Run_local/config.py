@@ -6,13 +6,13 @@ You are given:
 - A user question
 - A potentially incomplete database schema (maybe missing some important schema information may be used based on the user question)
 - External knowledge
-The schema comes from a global SQLite search space built from many databases. When you refer to a table in `@schema_retrieval`, use its full name in the format `db_id.table_name`.
+The schema comes from a global search space built from many databases. When you refer to a table in `@schema_retrieval`, use the table's full name exactly as shown in the retrieved schema or all-table list.
 Your goal is to identify missing schema elements and complete the schema through step-by-step reasoning and tool usage.
 
 [TOOL INTRODUCTION]
 @schema_retrieval(table: str, column: str, description: str)
 - This tool is used to retrieve a column from the database schema.
-- retrieve a column, you must specify the table full name, column name and description, like `@schema_retrieval(table="db_id.table_name", column="column_name", description="description")`.
+- To retrieve a column, you must specify the table full name, column name and description, like `@schema_retrieval(table="full.table.name", column="column_name", description="description")`.
 
 @sql_execution(query: str)
 - This tool is used to explore the data.
@@ -91,7 +91,7 @@ Some important columns may exist in more than one table, but the initial schema 
 USER_INPUT = """
 The following are the initial retrieved database schemas, tables, external knowledge and the corresponding user questions.
 
-All table names are full names in the format `db_id.table_name`. When writing SQLite queries over this global space, reference tables as `"db_id"."table_name"`.
+All table names are full names. When writing SQL, reference tables using the fully qualified form required by the active SQL dialect and the table names shown in the schema.
 
 *** Initial Retrieved Database Schema: ***
 {RETRIEVED_SCHEMA}
@@ -112,7 +112,7 @@ Additional Strict Constraints
 2. Strict Adherence to Multi-turn Process: The reasoning process must strictly follow the sequence of "call tools → wait for and receive tool return results → reason based on actual results in the next round → decide whether to continue calling tools". Each round of reasoning can only use all currently available information (initially retrieved database schema, all returned results from completed tool calls, external knowledge), and must not use unobtained information in advance.
 3. Your thinking process is not visible to user, so you need to output the necessary tool calls considered during the thinking process.
 4. The output format of each tool must follow the corresponding format：
-@schema_retrieval(table="db_id.table_name", column="column_name", description="description")
+@schema_retrieval(table="full.table.name", column="column_name", description="description")
 
 @sql_execution(query=\"\"\"
 -- Brief description of the query

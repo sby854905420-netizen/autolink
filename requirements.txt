@@ -1,6 +1,9 @@
 faiss-cpu
 tqdm
 sentence_transformers
+transformers>=4.37.0
+accelerate
+torch
 openai
 snowflake
 pandas
