@@ -1,12 +1,17 @@
-faiss-cpu
-tqdm
-sentence_transformers
-transformers>=4.37.0
-accelerate
-torch
-openai
-snowflake
-pandas
-google-cloud-bigquery
-db-dtypes
-func_timeout
+# Direct runtime dependencies verified against the autolink conda environment.
+faiss-cpu==1.13.2
+numpy==2.4.4
+pandas==2.3.3
+tqdm==4.67.3
+
+# Embedding and local Hugging Face model backends.
+sentence-transformers==5.4.1
+torch==2.11.0
+transformers==5.5.4
+accelerate==1.13.0
+
+# Snowflake execution backend used by the Spider2 dataset path.
+snowflake-connector-python==4.4.0
+
+# Required by the Ministral 3 loading branch.
+mistral-common>=1.8.6

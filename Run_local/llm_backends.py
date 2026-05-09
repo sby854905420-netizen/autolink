@@ -13,6 +13,34 @@ DEFAULT_HF_YARN_FACTOR = 4.0
 DEFAULT_HF_YARN_ORIGINAL_MAX_POSITION_EMBEDDINGS = 32768
 
 
+def _normalise_model_name(model_name: str) -> str:
+    return (model_name or "").strip().lower()
+
+
+def _is_qwen_model(model_name: str, config=None) -> bool:
+    model_name = _normalise_model_name(model_name)
+    model_type = _normalise_model_name(getattr(config, "model_type", ""))
+    return "qwen" in model_name or model_type.startswith("qwen")
+
+
+def _is_ministral3_model_name(model_name: str) -> bool:
+    model_name = _normalise_model_name(model_name)
+    return "ministral-3" in model_name or "ministral3" in model_name
+
+
+def _is_ministral3_config(config) -> bool:
+    model_type = _normalise_model_name(getattr(config, "model_type", ""))
+    text_config = getattr(config, "text_config", None)
+    text_model_type = _normalise_model_name(getattr(text_config, "model_type", ""))
+    architectures = getattr(config, "architectures", []) or []
+    architecture_names = {_normalise_model_name(name) for name in architectures}
+    return (
+        model_type == "mistral3"
+        or text_model_type == "ministral3"
+        or "mistral3forconditionalgeneration" in architecture_names
+    )
+
+
 def _env_bool(name: str, default: bool = False) -> bool:
     value = os.environ.get(name)
     if value is None:
@@ -60,6 +88,44 @@ def _primary_device(model):
         return getattr(model, "device", "cpu")
 
 
+def _set_tokenizer_context_length(tokenizer, context_length: int):
+    try:
+        tokenizer.model_max_length = context_length
+    except AttributeError:
+        pass
+
+
+def _decode_tokenizer_output(tokenizer, token_ids) -> str:
+    try:
+        return tokenizer.decode(token_ids, skip_special_tokens=True).strip()
+    except TypeError:
+        return tokenizer.decode(token_ids).strip()
+
+
+def _move_model_inputs(model_inputs, device, torch_module):
+    moved_inputs = {}
+    for key, value in dict(model_inputs).items():
+        if not hasattr(value, "to"):
+            moved_inputs[key] = value
+            continue
+        if key == "pixel_values" and torch_module.is_floating_point(value):
+            moved_inputs[key] = value.to(device=device, dtype=torch_module.bfloat16)
+        else:
+            moved_inputs[key] = value.to(device)
+    return moved_inputs
+
+
+def _normalise_text_message_parts(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    normalised_messages = []
+    for message in messages:
+        normalised_message = dict(message)
+        content = normalised_message.get("content")
+        if isinstance(content, str):
+            normalised_message["content"] = [{"type": "text", "text": content}]
+        normalised_messages.append(normalised_message)
+    return normalised_messages
+
+
 @dataclass
 class ChatResult:
     content: str
@@ -89,6 +155,8 @@ class HFTransformersChatBackend:
         self._tokenizer = None
         self._model = None
         self._torch = None
+        self._backend_name = "hf_transformers"
+        self._applied_rope_scaling = None
 
     def _load(self):
         with self._lock:
@@ -117,17 +185,32 @@ class HFTransformersChatBackend:
             if not manual_device:
                 manual_device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
+            if _is_ministral3_model_name(self.model_name):
+                self._load_ministral3(torch, use_device_map, manual_device)
+                return
+
             config = AutoConfig.from_pretrained(
                 self.model_name,
                 trust_remote_code=self.trust_remote_code,
             )
-            if self.use_yarn:
+            if _is_ministral3_config(config):
+                self._load_ministral3(torch, use_device_map, manual_device)
+                return
+
+            apply_yarn = self.use_yarn and _is_qwen_model(self.model_name, config)
+            if self.use_yarn and not apply_yarn:
+                print(
+                    "Skipping YaRN override for non-Qwen Hugging Face model "
+                    f"{self.model_name}."
+                )
+            if apply_yarn:
                 rope_parameters = dict(getattr(config, "rope_parameters", {}) or {})
-                config.rope_scaling = {
+                rope_scaling = {
                     "type": "yarn",
                     "factor": self.yarn_factor,
                     "original_max_position_embeddings": self.yarn_original_max_position_embeddings,
                 }
+                config.rope_scaling = rope_scaling
                 rope_parameters.update(
                     {
                         "rope_type": "yarn",
@@ -146,6 +229,7 @@ class HFTransformersChatBackend:
                         int(getattr(config, "max_position_embeddings", 0) or 0),
                         self.context_length,
                     )
+                self._applied_rope_scaling = rope_scaling
 
             model_kwargs = {
                 "config": config,
@@ -160,7 +244,7 @@ class HFTransformersChatBackend:
             print(
                 "Loading Hugging Face chat model "
                 f"{self.model_name} with context_length={self.context_length}, "
-                f"yarn={self.use_yarn}, "
+                f"yarn={bool(self._applied_rope_scaling)}, "
                 f"device_map={self.device_map if use_device_map else 'disabled'}, "
                 f"device={manual_device if not use_device_map else 'auto'}"
             )
@@ -168,12 +252,79 @@ class HFTransformersChatBackend:
                 self.model_name,
                 trust_remote_code=self.trust_remote_code,
             )
-            self._tokenizer.model_max_length = self.context_length
+            _set_tokenizer_context_length(self._tokenizer, self.context_length)
             self._model = AutoModelForCausalLM.from_pretrained(self.model_name, **model_kwargs)
             if not use_device_map:
                 self._model.to(manual_device)
             self._model.eval()
             self._torch = torch
+
+    def _load_ministral3(self, torch, use_device_map: bool, manual_device: str):
+        try:
+            from transformers import Mistral3ForConditionalGeneration, MistralCommonBackend
+        except ImportError as exc:
+            raise RuntimeError(
+                "Ministral 3 models require a Transformers build with "
+                "Mistral3ForConditionalGeneration and MistralCommonBackend, plus "
+                "mistral-common>=1.8.6. Install/update these dependencies in the "
+                "autolink environment before using "
+                f"{self.model_name}."
+            ) from exc
+
+        model_kwargs = {}
+        torch_dtype = _resolve_torch_dtype(torch, self.torch_dtype)
+        if torch_dtype != "auto":
+            model_kwargs["torch_dtype"] = torch_dtype
+        if use_device_map:
+            model_kwargs["device_map"] = self.device_map
+        if self.attn_implementation:
+            model_kwargs["attn_implementation"] = self.attn_implementation
+
+        print(
+            "Loading Ministral 3 Hugging Face chat model "
+            f"{self.model_name} with context_length={self.context_length}, "
+            "yarn=native, "
+            f"device_map={self.device_map if use_device_map else 'disabled'}, "
+            f"device={manual_device if not use_device_map else 'auto'}"
+        )
+        self._tokenizer = MistralCommonBackend.from_pretrained(self.model_name)
+        _set_tokenizer_context_length(self._tokenizer, self.context_length)
+        self._model = Mistral3ForConditionalGeneration.from_pretrained(
+            self.model_name,
+            **model_kwargs,
+        )
+        if not use_device_map:
+            self._model.to(manual_device)
+        self._model.eval()
+        self._torch = torch
+        self._backend_name = "hf_transformers_ministral3"
+        self._applied_rope_scaling = None
+
+    def _tokenize_messages(self, tokenizer, messages: list[dict[str, str]]):
+        if self._backend_name == "hf_transformers_ministral3":
+            try:
+                return tokenizer.apply_chat_template(
+                    messages,
+                    return_tensors="pt",
+                    return_dict=True,
+                )
+            except (TypeError, ValueError):
+                return tokenizer.apply_chat_template(
+                    _normalise_text_message_parts(messages),
+                    return_tensors="pt",
+                    return_dict=True,
+                )
+
+        text = tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+        return tokenizer(
+            [text],
+            return_tensors="pt",
+            truncation=False,
+        )
 
     def chat(self, messages: list[dict[str, str]]) -> ChatResult:
         self._load()
@@ -181,16 +332,7 @@ class HFTransformersChatBackend:
         model = self._model
         torch = self._torch
 
-        text = tokenizer.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True,
-        )
-        model_inputs = tokenizer(
-            [text],
-            return_tensors="pt",
-            truncation=False,
-        )
+        model_inputs = self._tokenize_messages(tokenizer, messages)
         prompt_tokens = int(model_inputs["input_ids"].shape[-1])
         if prompt_tokens + self.max_new_tokens > self.context_length:
             raise RuntimeError(
@@ -200,27 +342,32 @@ class HFTransformersChatBackend:
             )
 
         device = _primary_device(model)
-        model_inputs = {key: value.to(device) for key, value in model_inputs.items()}
+        model_inputs = _move_model_inputs(model_inputs, device, torch)
 
         generation_kwargs = {
             "max_new_tokens": self.max_new_tokens,
             "do_sample": self.do_sample,
-            "pad_token_id": tokenizer.pad_token_id
-            if tokenizer.pad_token_id is not None
-            else tokenizer.eos_token_id,
         }
+        pad_token_id = getattr(tokenizer, "pad_token_id", None)
+        eos_token_id = getattr(tokenizer, "eos_token_id", None)
+        if pad_token_id is not None or eos_token_id is not None:
+            generation_kwargs["pad_token_id"] = (
+                pad_token_id if pad_token_id is not None else eos_token_id
+            )
         if self.do_sample:
             generation_kwargs["temperature"] = self.temperature
             generation_kwargs["top_p"] = self.top_p
+        if self._backend_name == "hf_transformers_ministral3" and "pixel_values" in model_inputs:
+            generation_kwargs.setdefault("image_sizes", [model_inputs["pixel_values"].shape[-2:]])
 
         with torch.inference_mode():
             generated_ids = model.generate(**model_inputs, **generation_kwargs)
 
         output_ids = generated_ids[0][prompt_tokens:]
-        content = tokenizer.decode(output_ids, skip_special_tokens=True).strip()
+        content = _decode_tokenizer_output(tokenizer, output_ids)
         completion_tokens = int(output_ids.shape[-1])
         response_data = {
-            "backend": "hf_transformers",
+            "backend": self._backend_name,
             "model": self.model_name,
             "usage": {
                 "prompt_tokens": prompt_tokens,
@@ -229,13 +376,7 @@ class HFTransformersChatBackend:
             },
             "context_length": self.context_length,
             "max_new_tokens": self.max_new_tokens,
-            "rope_scaling": {
-                "type": "yarn",
-                "factor": self.yarn_factor,
-                "original_max_position_embeddings": self.yarn_original_max_position_embeddings,
-            }
-            if self.use_yarn
-            else None,
+            "rope_scaling": self._applied_rope_scaling,
         }
         if not content:
             raise RuntimeError(f"Hugging Face model returned an empty response: {response_data}")
