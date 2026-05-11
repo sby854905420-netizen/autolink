@@ -115,6 +115,16 @@ def _set_tokenizer_context_length(tokenizer, context_length: int):
         pass
 
 
+def _clear_default_generation_max_length(model):
+    generation_config = getattr(model, "generation_config", None)
+    if generation_config is None:
+        return
+    try:
+        generation_config.max_length = None
+    except AttributeError:
+        pass
+
+
 def _decode_tokenizer_output(tokenizer, token_ids) -> str:
     try:
         return tokenizer.decode(token_ids, skip_special_tokens=True).strip()
@@ -278,6 +288,7 @@ class HFTransformersChatBackend:
             )
             _set_tokenizer_context_length(self._tokenizer, self.context_length)
             self._model = AutoModelForCausalLM.from_pretrained(self.model_name, **model_kwargs)
+            _clear_default_generation_max_length(self._model)
             if not use_device_map:
                 self._model.to(manual_device)
             self._model.eval()
@@ -317,6 +328,7 @@ class HFTransformersChatBackend:
             self.model_name,
             **model_kwargs,
         )
+        _clear_default_generation_max_length(self._model)
         if not use_device_map:
             self._model.to(manual_device)
         self._model.eval()
