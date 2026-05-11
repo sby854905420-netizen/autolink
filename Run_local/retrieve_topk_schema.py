@@ -6,6 +6,7 @@ import faiss
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from cost_tool import SampleCostRecorder
+from progress_logger import get_progress_logger, progress_bar, setup_progress_logging
 from utils import *
 import argparse
 
@@ -201,18 +202,35 @@ def get_next_k_results(instance_id: str, question: str, db_name: str, embed_path
 
 
 def process_batch_with_device(batch_items, device_id, top_k, log_dir, dataset_name):
-    print(f"process {os.getpid()} - GPU {device_id}: loading model...")
+    logger = get_progress_logger(__name__)
+    logger.info(
+        "Retrieval worker started | pid=%s gpu=%s samples=%s top_k=%s dataset=%s",
+        os.getpid(),
+        device_id,
+        len(batch_items),
+        top_k,
+        dataset_name,
+    )
     try:
         from model_manager import model_manager
         model_manager.load_model(device=f"cuda:{device_id}")
         memory_info = model_manager.get_memory_usage()
         if memory_info:
-            print(f"process {os.getpid()} - GPU {device_id}: model has load to {memory_info['device']}")
+            logger.info(
+                "Embedding model ready | pid=%s gpu=%s device=%s",
+                os.getpid(),
+                device_id,
+                memory_info["device"],
+            )
         else:
-            print(f"process {os.getpid()} - GPU {device_id}: model has load to CPU")
+            logger.info("Embedding model ready | pid=%s gpu=%s device=cpu", os.getpid(), device_id)
     except Exception as e:
-        print(f"process {os.getpid()} - GPU {device_id}: model load failed: {e}")
-        print(f"process {os.getpid()} - GPU {device_id}: will use CPU mode")
+        logger.warning(
+            "Embedding model load failed, falling back to CPU | pid=%s gpu=%s error=%s",
+            os.getpid(),
+            device_id,
+            e,
+        )
         model_manager.load_model(device="cpu")
     
     batch_results = {}
@@ -223,7 +241,12 @@ def process_batch_with_device(batch_items, device_id, top_k, log_dir, dataset_na
     
     device = f"cuda:{device_id}"
     
-    for instance_id, item in tqdm(batch_items.items(), desc=f"GPU {device_id} - 进程 {os.getpid()}"):
+    for instance_id, item in progress_bar(
+        batch_items.items(),
+        desc=f"retrieve gpu={device_id} pid={os.getpid()}",
+        total=len(batch_items),
+        unit="sample",
+    ):
         with SampleCostRecorder(
             sample_id=instance_id,
             output_path=cost_output_path,
@@ -328,6 +351,8 @@ def retrieve_additional(
 
 
 def retrieve(log_dir: str, top_n: int = 50, dataset_name: str = DEFAULT_DATASET_NAME):
+    setup_progress_logging(log_dir)
+    logger = get_progress_logger(__name__)
     os.makedirs(log_dir, exist_ok=True)
 
     spider2_data = load_dataset_data(dataset_name)
@@ -336,6 +361,13 @@ def retrieve(log_dir: str, top_n: int = 50, dataset_name: str = DEFAULT_DATASET_
 
     visible_devices = os.environ.get("CUDA_VISIBLE_DEVICES", "0").split(",")
     num_gpus = len(visible_devices)
+    logger.info(
+        "Retrieval setup | dataset=%s samples=%s top_n=%s visible_devices=%s",
+        dataset_name,
+        len(instance_ids),
+        top_n,
+        ",".join(visible_devices),
+    )
     
     batch_size = len(instance_ids) // num_gpus
     if batch_size == 0:
@@ -368,9 +400,14 @@ def retrieve(log_dir: str, top_n: int = 50, dataset_name: str = DEFAULT_DATASET_
     with open(os.path.join(f"{log_dir}", "initial_candidates.json"), "w", encoding="utf-8") as f:
         json.dump(all_candidates, f, ensure_ascii=False, indent=2)
         
-    print(f"Retrieval completed, results saved to {log_dir}/")
-    print(f"Cache saved to {log_dir}/cache/")
-    print(f"Status saved to {log_dir}/status/")
+    logger.info(
+        "Retrieval completed | dataset=%s candidates=%s output=%s cache=%s status=%s",
+        dataset_name,
+        len(all_candidates),
+        os.path.join(log_dir, "initial_candidates.json"),
+        os.path.join(log_dir, "cache"),
+        os.path.join(log_dir, "status"),
+    )
 
 
 if __name__ == "__main__":

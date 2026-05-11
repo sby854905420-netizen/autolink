@@ -4,9 +4,13 @@ import importlib.util
 from dataclasses import dataclass
 from typing import Any
 
+from progress_logger import get_progress_logger
+
 
 DEFAULT_HF_MODEL_NAME = "Qwen/Qwen2.5-7B-Instruct"
-DEFAULT_HF_CONTEXT_LENGTH = 131072
+DEFAULT_QWEN25_CONTEXT_LENGTH = 131072
+DEFAULT_MINISTRAL3_CONTEXT_LENGTH = 262144
+DEFAULT_HF_CONTEXT_LENGTH = DEFAULT_QWEN25_CONTEXT_LENGTH
 DEFAULT_HF_MAX_NEW_TOKENS = 2048
 DEFAULT_HF_USE_YARN = True
 DEFAULT_HF_YARN_FACTOR = 4.0
@@ -23,9 +27,25 @@ def _is_qwen_model(model_name: str, config=None) -> bool:
     return "qwen" in model_name or model_type.startswith("qwen")
 
 
+def _is_qwen25_model_name(model_name: str) -> bool:
+    model_name = _normalise_model_name(model_name)
+    return "qwen2.5" in model_name or "qwen-2.5" in model_name
+
+
 def _is_ministral3_model_name(model_name: str) -> bool:
     model_name = _normalise_model_name(model_name)
     return "ministral-3" in model_name or "ministral3" in model_name
+
+
+def default_context_length_for_model(model_name: str) -> int:
+    if _is_ministral3_model_name(model_name):
+        return DEFAULT_MINISTRAL3_CONTEXT_LENGTH
+    if _is_qwen25_model_name(model_name):
+        return DEFAULT_QWEN25_CONTEXT_LENGTH
+    raise ValueError(
+        "Unsupported HF_MODEL_NAME. This pipeline currently supports only "
+        "Qwen2.5 series models and Ministral-3 series models."
+    )
 
 
 def _is_ministral3_config(config) -> bool:
@@ -134,8 +154,12 @@ class ChatResult:
 
 class HFTransformersChatBackend:
     def __init__(self):
+        self._logger = get_progress_logger(__name__)
         self.model_name = os.environ.get("HF_MODEL_NAME", DEFAULT_HF_MODEL_NAME)
-        self.context_length = _env_int("HF_CONTEXT_LENGTH", DEFAULT_HF_CONTEXT_LENGTH)
+        self.context_length = _env_int(
+            "HF_CONTEXT_LENGTH",
+            default_context_length_for_model(self.model_name),
+        )
         self.max_new_tokens = _env_int("HF_MAX_NEW_TOKENS", DEFAULT_HF_MAX_NEW_TOKENS)
         self.device_map = os.environ.get("HF_DEVICE_MAP", "auto")
         self.device = os.environ.get("HF_DEVICE", "").strip()
@@ -175,7 +199,7 @@ class HFTransformersChatBackend:
             has_accelerate = importlib.util.find_spec("accelerate") is not None
             use_device_map = bool(self.device_map) and self.device_map.lower() != "none"
             if use_device_map and not has_accelerate:
-                print(
+                self._logger.warning(
                     "accelerate is not installed; falling back to a single-device "
                     "Hugging Face load. Install accelerate to use HF_DEVICE_MAP=auto."
                 )
@@ -199,7 +223,7 @@ class HFTransformersChatBackend:
 
             apply_yarn = self.use_yarn and _is_qwen_model(self.model_name, config)
             if self.use_yarn and not apply_yarn:
-                print(
+                self._logger.info(
                     "Skipping YaRN override for non-Qwen Hugging Face model "
                     f"{self.model_name}."
                 )
@@ -241,7 +265,7 @@ class HFTransformersChatBackend:
             if self.attn_implementation:
                 model_kwargs["attn_implementation"] = self.attn_implementation
 
-            print(
+            self._logger.info(
                 "Loading Hugging Face chat model "
                 f"{self.model_name} with context_length={self.context_length}, "
                 f"yarn={bool(self._applied_rope_scaling)}, "
@@ -280,7 +304,7 @@ class HFTransformersChatBackend:
         if self.attn_implementation:
             model_kwargs["attn_implementation"] = self.attn_implementation
 
-        print(
+        self._logger.info(
             "Loading Ministral 3 Hugging Face chat model "
             f"{self.model_name} with context_length={self.context_length}, "
             "yarn=native, "

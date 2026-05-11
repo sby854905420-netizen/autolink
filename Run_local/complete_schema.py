@@ -5,11 +5,10 @@ import os
 import re
 import shutil
 
-from tqdm import tqdm
-
 from cost_tool import SampleCostRecorder
 from config import *
 from llm_backends import chat_with_model
+from progress_logger import get_progress_logger, progress_bar, setup_progress_logging
 from retrieve_topk_schema import get_next_k_results
 from sql_backends import thread_safe_sql_execution
 from utils import *
@@ -91,6 +90,13 @@ def remove_column_values(schema_text):
 
 
 def process_instance_batch(batch_instances, log_path, dataset_name):
+    logger = get_progress_logger(__name__)
+    logger.info(
+        "Schema completion worker started | pid=%s dataset=%s samples=%s",
+        os.getpid(),
+        dataset_name,
+        len(batch_instances),
+    )
     cache_path = os.path.join(log_path, "cache")
     status_path = os.path.join(log_path, "status")
     schema_path = os.path.join(log_path, "schema_prompts")
@@ -101,7 +107,14 @@ def process_instance_batch(batch_instances, log_path, dataset_name):
     error_path = os.path.join(log_path, "error")
     cost_output_path = os.path.join(log_path, "cost.json")
 
-    for instance_id, info in tqdm(batch_instances.items(), leave=False, desc=f"Thread {os.getpid()}"):
+    sample_bar = progress_bar(
+        batch_instances.items(),
+        leave=False,
+        desc=f"complete pid={os.getpid()}",
+        total=len(batch_instances),
+        unit="sample",
+    )
+    for instance_id, info in sample_bar:
         with SampleCostRecorder(
             sample_id=instance_id,
             output_path=cost_output_path,
@@ -135,7 +148,7 @@ def process_instance_batch(batch_instances, log_path, dataset_name):
                     with open(ek_path, "r", encoding="utf-8") as ef:
                         knowledge_data = ef.read()
                 else:
-                    print(f"[Warning] External knowledge file not found: {ek_file}")
+                    logger.warning("External knowledge file not found | instance=%s path=%s", instance_id, ek_file)
             db_documents = documents[db_name]
 
             with open(f"{schema_path}/{instance_id}.txt", "r", encoding="utf-8") as f:
@@ -185,6 +198,7 @@ def process_instance_batch(batch_instances, log_path, dataset_name):
                 except Exception as e:
                     model_output = f"Model call failed: {e}"
                     is_error = True
+                    logger.exception("LLM turn failed | instance=%s turn=%s/%s", instance_id, i + 1, 10)
 
                 all_model_output += f"Turn {i}\n{model_output}\n" + "=" * 50 + "\n\n"
 
@@ -194,6 +208,7 @@ def process_instance_batch(batch_instances, log_path, dataset_name):
                     full_lines = []
                     tool_calls = []
                     is_error = True
+                    logger.exception("Model output parsing failed | instance=%s turn=%s/%s", instance_id, i + 1, 10)
 
                     with open(os.path.join(error_path, instance_id) + ".txt", "w", encoding="utf-8") as f:
                         f.write(model_output)
@@ -298,7 +313,7 @@ def process_instance_batch(batch_instances, log_path, dataset_name):
             }
 
             if is_error:
-                print(f"Error occurred for instance {instance_id}. Skipping...")
+                logger.error("Instance skipped after error | instance=%s dataset=%s", instance_id, dataset_name)
                 continue
 
             with open(os.path.join(model_output_path, instance_id) + ".txt", "w", encoding="utf-8") as f:
@@ -315,8 +330,10 @@ def process_instance_batch(batch_instances, log_path, dataset_name):
 
 
 def complete_schema(log_path, dataset_name, num_threads=3):
+    setup_progress_logging(log_path)
+    logger = get_progress_logger(__name__)
     if num_threads > 1:
-        print(
+        logger.warning(
             "Warning: Hugging Face backend loads one chat model per process. "
             "Use NUM_THREADS=1 unless you have enough GPU memory for multiple copies."
         )
@@ -344,8 +361,8 @@ def complete_schema(log_path, dataset_name, num_threads=3):
 
     instance_ids = list(spider2_data.keys())
 
-    print("Backup instance status ...")
-    for instance_id in instance_ids:
+    logger.info("Backing up instance status | dataset=%s samples=%s", dataset_name, len(instance_ids))
+    for instance_id in progress_bar(instance_ids, desc="backup status", unit="sample"):
         backup_instance_state(instance_id, log_path)
 
     clean_instance_ids = []
@@ -360,7 +377,13 @@ def complete_schema(log_path, dataset_name, num_threads=3):
 
         clean_instance_ids.append(instance_id)
 
-    print(f"Unfinished instances: {len(clean_instance_ids)}")
+    logger.info(
+        "Schema completion queue prepared | dataset=%s total=%s unfinished=%s already_done=%s",
+        dataset_name,
+        len(instance_ids),
+        len(clean_instance_ids),
+        len(instance_ids) - len(clean_instance_ids),
+    )
 
     uncompleted_path = os.path.join(log_path, f"uncompleted_instances_{dataset_name}.txt")
     with open(uncompleted_path, "w", encoding="utf-8") as f:
@@ -382,6 +405,12 @@ def complete_schema(log_path, dataset_name, num_threads=3):
     mp.set_start_method("spawn", force=True)
 
     processes = []
+    logger.info(
+        "Schema completion processes starting | dataset=%s processes=%s batches=%s",
+        dataset_name,
+        num_threads,
+        len(batches),
+    )
     for i in range(num_threads):
         if i < len(batches):
             p = mp.Process(
@@ -393,6 +422,10 @@ def complete_schema(log_path, dataset_name, num_threads=3):
 
     for p in processes:
         p.join()
+        if p.exitcode != 0:
+            logger.error("Schema completion worker exited with error | pid=%s exitcode=%s", p.pid, p.exitcode)
+        else:
+            logger.info("Schema completion worker finished | pid=%s exitcode=%s", p.pid, p.exitcode)
 
 
 if __name__ == "__main__":
@@ -401,6 +434,7 @@ if __name__ == "__main__":
     parser.add_argument("--dataset_name", type=str, default=DEFAULT_DATASET_NAME)
     parser.add_argument("--num_threads", type=int, default=1)
     args = parser.parse_args()
-    print("Starting schema completion...")
+    logger = get_progress_logger(__name__)
+    logger.info("Starting schema completion...")
     complete_schema(args.log_path, args.dataset_name, num_threads=max(1, args.num_threads))
-    print("Schema completion finished.")
+    logger.info("Schema completion finished.")

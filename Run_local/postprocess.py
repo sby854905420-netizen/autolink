@@ -5,6 +5,7 @@ import argparse
 import glob
 
 from cost_tool import SampleCostRecorder
+from progress_logger import get_progress_logger, progress_bar, setup_progress_logging
 from utils import DEFAULT_DATASET_NAME, is_dataset_instance
 
 def extract_description(description_text):
@@ -17,6 +18,8 @@ def extract_description(description_text):
     return ""                
         
 def merge(log_path, is_preprocess=False, dataset_name: str = DEFAULT_DATASET_NAME):
+    setup_progress_logging(log_path)
+    logger = get_progress_logger(__name__)
     cost_output_path = os.path.join(log_path, "cost.json")
     if is_preprocess:
         with open(f"{log_path}/unfilled_pre_rule.json", "r", encoding="utf-8") as f:
@@ -25,7 +28,19 @@ def merge(log_path, is_preprocess=False, dataset_name: str = DEFAULT_DATASET_NAM
         with open(f"{log_path}/initial_candidates.json", "r", encoding="utf-8") as f:
             initial_candidates = json.load(f)
         
-    for instance_id, schema_info in initial_candidates.items():
+    logger.info(
+        "Merging candidates started | dataset=%s samples=%s is_preprocess=%s",
+        dataset_name,
+        len(initial_candidates),
+        is_preprocess,
+    )
+
+    for instance_id, schema_info in progress_bar(
+        initial_candidates.items(),
+        desc="merge step2 candidates",
+        total=len(initial_candidates),
+        unit="sample",
+    ):
         if os.path.exists(f"{log_path}/candidates/{instance_id}.json"):
             with open(f"{log_path}/candidates/{instance_id}.json", "r", encoding="utf-8") as f:
                 step2_candidates = json.load(f)
@@ -45,7 +60,12 @@ def merge(log_path, is_preprocess=False, dataset_name: str = DEFAULT_DATASET_NAM
         
     final_schemas =  {}
         
-    for instance_id, schema_info in initial_candidates.items():
+    for instance_id, schema_info in progress_bar(
+        initial_candidates.items(),
+        desc="fill merged candidates",
+        total=len(initial_candidates),
+        unit="sample",
+    ):
         with SampleCostRecorder(
             sample_id=instance_id,
             output_path=cost_output_path,
@@ -114,6 +134,12 @@ def merge(log_path, is_preprocess=False, dataset_name: str = DEFAULT_DATASET_NAM
         
     with open(f"{log_path}/merge_candidates.json", "w") as f:
         json.dump(final_schemas, f, indent=4, ensure_ascii=False)
+    logger.info(
+        "Merging candidates finished | dataset=%s samples=%s output=%s",
+        dataset_name,
+        len(final_schemas),
+        os.path.join(log_path, "merge_candidates.json"),
+    )
 
 
 if __name__ == "__main__":
@@ -121,6 +147,7 @@ if __name__ == "__main__":
     parser.add_argument('--log_path', type=str, default="log_mmqa_global_topn100")
     parser.add_argument('--dataset_name', type=str, default=DEFAULT_DATASET_NAME)
     args = parser.parse_args()
-    print("Merging candidate schemas...")
+    logger = get_progress_logger(__name__)
+    logger.info("Merging candidate schemas...")
     merge(log_path=args.log_path, is_preprocess=True, dataset_name=args.dataset_name)
-    print("Merging completed.")
+    logger.info("Merging completed.")

@@ -10,10 +10,18 @@ from utils import (
     require_supported_dataset,
 )
 from llm_backends import (
-    DEFAULT_HF_CONTEXT_LENGTH,
     DEFAULT_HF_MAX_NEW_TOKENS,
     DEFAULT_HF_MODEL_NAME,
+    default_context_length_for_model,
 )
+from progress_logger import log_run_header, log_stage, setup_progress_logging
+
+
+def optional_env_int(name: str) -> int | None:
+    value = os.environ.get(name)
+    if value is None or value.strip() == "":
+        return None
+    return int(value)
 
 
 def parse_args():
@@ -24,7 +32,7 @@ def parse_args():
     parser.add_argument(
         "--hf_context_length",
         type=int,
-        default=int(os.environ.get("HF_CONTEXT_LENGTH", str(DEFAULT_HF_CONTEXT_LENGTH))),
+        default=optional_env_int("HF_CONTEXT_LENGTH"),
     )
     parser.add_argument(
         "--hf_max_new_tokens",
@@ -52,7 +60,7 @@ def reset_cost_files(log_path: str):
 def run_pipeline(
     dataset_name: str = DEFAULT_DATASET_NAME,
     hf_model_name: str = DEFAULT_HF_MODEL_NAME,
-    hf_context_length: int = DEFAULT_HF_CONTEXT_LENGTH,
+    hf_context_length: int | None = None,
     hf_max_new_tokens: int = DEFAULT_HF_MAX_NEW_TOKENS,
     top_n: int = 100,
     num_threads: int = 1,
@@ -63,8 +71,14 @@ def run_pipeline(
     require_dataset_file(dataset_name)
     require_local_embedding_index(dataset_name)
 
+    resolved_hf_context_length = (
+        hf_context_length
+        if hf_context_length is not None
+        else default_context_length_for_model(hf_model_name)
+    )
+
     os.environ["HF_MODEL_NAME"] = hf_model_name
-    os.environ["HF_CONTEXT_LENGTH"] = str(hf_context_length)
+    os.environ["HF_CONTEXT_LENGTH"] = str(resolved_hf_context_length)
     os.environ["HF_MAX_NEW_TOKENS"] = str(hf_max_new_tokens)
 
     resolved_log_path = prepare_log_dir(
@@ -72,6 +86,17 @@ def run_pipeline(
         dataset_name=dataset_name,
         model_name=hf_model_name,
         time_id=time_id,
+    )
+    logger = setup_progress_logging(resolved_log_path)
+    log_run_header(
+        logger,
+        dataset_name=dataset_name,
+        model_name=hf_model_name,
+        log_path=resolved_log_path,
+        top_n=top_n,
+        num_threads=max(1, num_threads),
+        hf_context_length=resolved_hf_context_length,
+        hf_max_new_tokens=hf_max_new_tokens,
     )
     reset_cost_files(resolved_log_path)
 
@@ -81,15 +106,26 @@ def run_pipeline(
     from postprocess import merge
     from retrieve_topk_schema import retrieve
 
-    retrieve(resolved_log_path, top_n=max(1, top_n), dataset_name=dataset_name)
-    add_pre_rule(resolved_log_path, dataset_name=dataset_name)
-    generate_schema_prompt(resolved_log_path, is_initial=True, dataset_name=dataset_name)
-    complete_schema(resolved_log_path, dataset_name=dataset_name, num_threads=max(1, num_threads))
-    merge(log_path=resolved_log_path, is_preprocess=True, dataset_name=dataset_name)
-    generate_schema_prompt(resolved_log_path, is_initial=False, dataset_name=dataset_name)
+    with log_stage(logger, "retrieve top-k schema", dataset=dataset_name, top_n=max(1, top_n)):
+        retrieve(resolved_log_path, top_n=max(1, top_n), dataset_name=dataset_name)
+    with log_stage(logger, "add id/name/code columns", dataset=dataset_name):
+        add_pre_rule(resolved_log_path, dataset_name=dataset_name)
+    with log_stage(logger, "generate initial schema prompts", dataset=dataset_name):
+        generate_schema_prompt(resolved_log_path, is_initial=True, dataset_name=dataset_name)
+    with log_stage(
+        logger,
+        "complete schema with llm",
+        dataset=dataset_name,
+        model=hf_model_name,
+        num_threads=max(1, num_threads),
+    ):
+        complete_schema(resolved_log_path, dataset_name=dataset_name, num_threads=max(1, num_threads))
+    with log_stage(logger, "merge candidates", dataset=dataset_name):
+        merge(log_path=resolved_log_path, is_preprocess=True, dataset_name=dataset_name)
+    with log_stage(logger, "generate final schema prompts", dataset=dataset_name):
+        generate_schema_prompt(resolved_log_path, is_initial=False, dataset_name=dataset_name)
 
-    print(f"Pipeline completed for {dataset_name}")
-    print(f"Log path: {resolved_log_path}")
+    logger.info("Pipeline completed | dataset=%s log_path=%s", dataset_name, resolved_log_path)
 
 
 if __name__ == "__main__":

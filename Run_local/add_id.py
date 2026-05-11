@@ -4,6 +4,7 @@ import argparse
 import glob
 
 from cost_tool import SampleCostRecorder
+from progress_logger import get_progress_logger, progress_bar, setup_progress_logging
 from utils import DEFAULT_DATASET_NAME, determine_embedding_path, is_dataset_instance, load_dataset_data
 
 
@@ -78,6 +79,8 @@ def fill_rule(initial_candidates, dataset_name: str = DEFAULT_DATASET_NAME):
     return final_schemas
 
 def add_pre_rule(log_path, dataset_name: str = DEFAULT_DATASET_NAME):
+    setup_progress_logging(log_path)
+    logger = get_progress_logger(__name__)
     cache_path = os.path.join(log_path, "cache")
     status_path = os.path.join(log_path, "status")
     cost_output_path = os.path.join(log_path, "cost.json")
@@ -86,9 +89,19 @@ def add_pre_rule(log_path, dataset_name: str = DEFAULT_DATASET_NAME):
     with open(f"{log_path}/initial_candidates.json", "r", encoding="utf-8") as f:
         initial_candidates = json.load(f)
         
+    logger.info(
+        "Adding id/name/code columns started | dataset=%s samples=%s",
+        dataset_name,
+        len(initial_candidates),
+    )
     add_id_candidates = {}
     
-    for instance_id, schema_info in initial_candidates.items():
+    for instance_id, schema_info in progress_bar(
+        initial_candidates.items(),
+        desc="add id/name/code",
+        total=len(initial_candidates),
+        unit="sample",
+    ):
         with SampleCostRecorder(
             sample_id=instance_id,
             output_path=cost_output_path,
@@ -177,6 +190,12 @@ def add_pre_rule(log_path, dataset_name: str = DEFAULT_DATASET_NAME):
     
     with open(f"{log_path}/filled_pre_rule.json", "w", encoding="utf-8") as f:
         json.dump(filled_pre_rule, f, ensure_ascii=False, indent=4)
+    logger.info(
+        "Adding id/name/code columns finished | dataset=%s samples=%s output=%s",
+        dataset_name,
+        len(add_id_candidates),
+        os.path.join(log_path, "unfilled_pre_rule.json"),
+    )
     
     
 if __name__ == "__main__":

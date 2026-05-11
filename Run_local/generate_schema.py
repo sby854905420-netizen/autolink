@@ -5,6 +5,7 @@ import re
 import argparse
 
 from cost_tool import SampleCostRecorder
+from progress_logger import get_progress_logger, progress_bar, setup_progress_logging
 from utils import (
     DEFAULT_DATASET_NAME,
     get_documents_file,
@@ -264,26 +265,43 @@ def generate_schema_prompt(
     is_initial: bool = False,
     dataset_name: str = DEFAULT_DATASET_NAME,
 ):
+    setup_progress_logging(log_path)
+    logger = get_progress_logger(__name__)
     cost_output_path = os.path.join(log_path, "cost.json")
     if is_initial:
-        print("Generating initial schema prompts...")
         with open(f"{log_path}/unfilled_pre_rule.json", "r", encoding="utf-8") as f:
             candidates = json.load(f)
         
         os.makedirs(f"{log_path}/schema_prompts", exist_ok=True)
+        output_dir = os.path.join(log_path, "schema_prompts")
+        prompt_kind = "initial"
     else:
-        print("Generating final schema prompts...")
         spider2_data = load_dataset_data(dataset_name)
         with open(f"{log_path}/unfilled_schema.json", "r", encoding="utf-8") as f:
             candidates = json.load(f)
         os.makedirs(f"{log_path}/final_schema_prompts", exist_ok=True)
+        output_dir = os.path.join(log_path, "final_schema_prompts")
+        prompt_kind = "final"
+
+    logger.info(
+        "Schema prompt generation started | dataset=%s kind=%s samples=%s output_dir=%s",
+        dataset_name,
+        prompt_kind,
+        len(candidates),
+        output_dir,
+    )
     
     with open(get_documents_file(dataset_name), "r", encoding="utf-8") as f:
         localdb_data = json.load(f)
 
     schema_prompt = ""
 
-    for instance_id, schema_info in tqdm(candidates.items()):
+    for instance_id, schema_info in progress_bar(
+        candidates.items(),
+        desc=f"schema prompts ({prompt_kind})",
+        total=len(candidates),
+        unit="sample",
+    ):
         with SampleCostRecorder(
             sample_id=instance_id,
             output_path=cost_output_path,
@@ -388,11 +406,18 @@ def generate_schema_prompt(
                                 + ek_content
                             )
                         else:
-                            print(f"[Warning] External knowledge file not found: {ek_file}")
+                            logger.warning("External knowledge file not found | instance=%s path=%s", instance_id, ek_file)
 
                 full_prompt = schema_prompt + external_text
                 with open(f"{log_path}/final_schema_prompts/{instance_id}.txt", "w", encoding="utf-8") as f:
                     f.write(full_prompt)
+    logger.info(
+        "Schema prompt generation finished | dataset=%s kind=%s samples=%s output_dir=%s",
+        dataset_name,
+        prompt_kind,
+        len(candidates),
+        output_dir,
+    )
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -406,5 +431,5 @@ if __name__ == "__main__":
         all_prompts = os.listdir(f"{args.log_path}/schema_prompts")
     else:
         all_prompts = os.listdir(f"{args.log_path}/final_schema_prompts")
-    print("Schema prompts generated successfully.")
-    print("Total:", len(all_prompts))
+    logger = get_progress_logger(__name__)
+    logger.info("Schema prompts generated successfully | total=%s", len(all_prompts))

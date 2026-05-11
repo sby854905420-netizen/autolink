@@ -5,9 +5,9 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$PROJECT_ROOT"
 
 # Experiment controls
-DATASET_NAME="Spider2"
-HF_MODEL_NAME="Qwen/Qwen2.5-7B-Instruct"
-TOP_N="100"
+DATASET_NAME="MMQA"
+HF_MODEL_NAME="mistralai/Ministral-3-8B-Instruct-2512"
+TOP_N="10"
 SENTENCE_TRANSFORMER_MODEL="BAAI/bge-large-en-v1.5"
 
 export SENTENCE_TRANSFORMER_MODEL

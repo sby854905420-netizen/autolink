@@ -2,6 +2,7 @@ import threading
 import os
 from sentence_transformers import SentenceTransformer
 import torch
+from progress_logger import get_progress_logger
 
 class ModelManager:    
     _instance = None
@@ -27,20 +28,26 @@ class ModelManager:
                     
         with self.model_lock:
             if self.model is None or self.device != device:
-                print(f"Loading model from {model_path} to {device}")
+                logger = get_progress_logger(__name__)
+                logger.info("Loading embedding model | model=%s device=%s", model_path, device)
                 if device.startswith("cuda") and not torch.cuda.is_available():
                     device = "cpu"
-                    print("CUDA not available, falling back to CPU")
+                    logger.warning("CUDA not available, falling back to CPU")
                 
                 self.model = SentenceTransformer(model_path, device=device)
                 self.device = device
-                print(f"Model loaded successfully on {device}")
+                logger.info("Embedding model loaded | device=%s", device)
                 
                 if device.startswith("cuda"):
                     gpu_id = int(device.split(":")[-1])
                     memory_allocated = torch.cuda.memory_allocated(gpu_id) / 1024**3
                     memory_reserved = torch.cuda.memory_reserved(gpu_id) / 1024**3
-                    print(f"GPU {gpu_id} Memory - Allocated: {memory_allocated:.2f}GB, Reserved: {memory_reserved:.2f}GB")
+                    logger.info(
+                        "Embedding GPU memory | gpu=%s allocated=%.2fGB reserved=%.2fGB",
+                        gpu_id,
+                        memory_allocated,
+                        memory_reserved,
+                    )
     
     def get_model(self):
         if self.model is None:

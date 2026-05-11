@@ -39,23 +39,14 @@ def extract_token_count(response_data: Optional[dict]) -> int:
         prompt_tokens = (
             usage.get("prompt_tokens")
             or usage.get("input_tokens")
-            or usage.get("prompt_eval_count")
         )
         completion_tokens = (
             usage.get("completion_tokens")
             or usage.get("output_tokens")
-            or usage.get("eval_count")
         )
         return _safe_int(prompt_tokens) + _safe_int(completion_tokens)
 
-    prompt_tokens = response_data.get("prompt_eval_count")
-    completion_tokens = response_data.get("eval_count")
-
-    if prompt_tokens is None and completion_tokens is None:
-        prompt_tokens = response_data.get("input_eval_count")
-        completion_tokens = response_data.get("output_eval_count")
-
-    return _safe_int(prompt_tokens) + _safe_int(completion_tokens)
+    return 0
 
 
 def _merge_cost_records(previous_record: dict, cost_record: dict) -> dict:

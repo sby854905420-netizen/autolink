@@ -1,6 +1,6 @@
 # Direct runtime dependencies verified against the autolink conda environment.
 faiss-cpu==1.13.2
-numpy==2.4.4
+numpy==2.3.5
 pandas==2.3.3
 tqdm==4.67.3
 
@@ -9,9 +9,16 @@ sentence-transformers==5.4.1
 torch==2.11.0
 transformers==5.5.4
 accelerate==1.13.0
+triton==3.6.0
 
 # Snowflake execution backend used by the Spider2 dataset path.
 snowflake-connector-python==4.4.0
 
-# Required by the Ministral 3 loading branch.
-mistral-common>=1.8.6
+# Required by the Ministral 3 loading and fine-grained FP8 generation path.
+mistral-common==1.11.2
+kernels==0.14.0
+kernels-data==0.14.0
+
+# Note: Ministral 3 FP8 generation also needs a visible C/C++ compiler at runtime
+# for Triton kernel compilation. In the autolink conda environment this is provided
+# by x86_64-conda-linux-gnu-gcc/g++ and should be exposed via CC/CXX when running.
