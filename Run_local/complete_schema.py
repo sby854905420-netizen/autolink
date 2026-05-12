@@ -279,7 +279,24 @@ def process_instance_batch(batch_instances, log_path, dataset_name):
                         if query == "":
                             continue
                         func_messages += f"Tool: {line} \n The tool returns the following results:\n"
-                        exec_status, results = thread_safe_sql_execution(instance_id, query, db_name, dataset_name)
+                        try:
+                            exec_status, results = thread_safe_sql_execution(instance_id, query, db_name, dataset_name)
+                        except Exception as e:
+                            exec_status = "error"
+                            results = (
+                                "SQL execution failed before returning results. Reason: "
+                                f"{e}. Please revise the tool call to use exactly one "
+                                "read-only SQL statement. For Snowflake, use a single "
+                                "SELECT or WITH query only; do not use SHOW, DESCRIBE, "
+                                "USE, DDL/DML, session commands, or multiple statements."
+                            )
+                            logger.exception(
+                                "SQL tool failed | instance=%s turn=%s/%s tool=%s",
+                                instance_id,
+                                i + 1,
+                                10,
+                                func["tool"],
+                            )
                         func_messages += f"{results}\n\n"
                         func["result"] = str(results)
 

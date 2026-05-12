@@ -108,13 +108,15 @@ def add_pre_rule(log_path, dataset_name: str = DEFAULT_DATASET_NAME):
         ):
             db_name = schema_info["db_name"]
             question = schema_info["question"]
-            table_candidates = schema_info["table_candidates"]
-            column_candidates = schema_info["column_candidates"]
+            table_candidates = schema_info["table_candidates"].copy()
+            column_candidates = schema_info["column_candidates"].copy()
+            max_additional_columns = int(schema_info.get("retrieved_count") or len(column_candidates))
+            added_columns = 0
             add_id_candidates[instance_id] = {
                 "question":question,
                 "db_name": db_name,
-                "table_candidates": table_candidates,
-                "column_candidates": column_candidates,
+                "table_candidates": table_candidates.copy(),
+                "column_candidates": column_candidates.copy(),
                 "column_types": schema_info["column_types"].copy(),
                 "column_values": schema_info["column_values"].copy(),
                 "descriptions": schema_info["descriptions"].copy(),
@@ -153,12 +155,16 @@ def add_pre_rule(log_path, dataset_name: str = DEFAULT_DATASET_NAME):
                     column_value = all_columns["column_value"]
                     description = all_columns["description"]
                     
+                    if added_columns >= max_additional_columns:
+                        break
+
                     if ("id" in column.lower() or "name" in column.lower() or "code" in column.lower()) and index not in cache["used_indices"]:
                         add_id_candidates[instance_id]["table_candidates"].append(table)
                         add_id_candidates[instance_id]["column_candidates"].append(column)
                         add_id_candidates[instance_id]["column_types"].append(column_type)
                         add_id_candidates[instance_id]["column_values"].append(column_value)
                         add_id_candidates[instance_id]["descriptions"].append(description)
+                        added_columns += 1
                         
                         cache["used_indices"].append(index)
                         cache_updated = True
@@ -169,7 +175,7 @@ def add_pre_rule(log_path, dataset_name: str = DEFAULT_DATASET_NAME):
                             status["is_complete"] = True
                             break
                 
-                if status["is_complete"]:
+                if status["is_complete"] or added_columns >= max_additional_columns:
                     break
             
             if status_updated:

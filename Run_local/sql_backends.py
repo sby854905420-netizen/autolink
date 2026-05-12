@@ -212,13 +212,23 @@ def limited_snowflake_query(sql: str, max_rows: int) -> str:
 
 
 def execute_snowflake_sql(sql: str, dataset_name: str):
-    import snowflake.connector
-
     max_rows = int(os.environ.get("SNOWFLAKE_RESULT_MAX_ROWS", "20"))
-    query = limited_snowflake_query(sql, max_rows=max_rows)
+    try:
+        query = limited_snowflake_query(sql, max_rows=max_rows)
+    except ValueError as e:
+        return (
+            "error",
+            "The SQL query was not executed because it violates the Snowflake "
+            f"exploration tool constraints: {e} Please use exactly one "
+            "read-only SELECT or WITH statement; do not use SHOW, DESCRIBE, "
+            "USE, DDL/DML, session commands, or multiple statements.",
+        )
+
     conn = None
     cursor = None
     try:
+        import snowflake.connector
+
         conn = snowflake.connector.connect(**snowflake_connection_params(dataset_name))
         cursor = conn.cursor()
         cursor.execute(query)
