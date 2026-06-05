@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import os
 import re
@@ -10,7 +12,7 @@ PROJECT_ROOT = os.path.dirname(BASE_DIR)
 DATASET_CONFIGS = {
     "mmqa": {
         "dir_name": "MMQA",
-        "data_file": "mmqa_data.json",
+        "data_file": "gold_sl.json",
         "instance_prefixes": ["mmqa_"],
         "global_document_db_name": "mmqa_global",
         "qualify_table_names": True,
@@ -19,8 +21,7 @@ DATASET_CONFIGS = {
     },
     "spider2": {
         "dir_name": "Spider2",
-        "data_file": "spider2_data.json",
-        "fallback_data_files": ["gold_sl.json"],
+        "data_file": "gold_sl.json",
         "instance_prefixes": ["sf"],
         "global_document_db_name": "spider2_global",
         "qualify_table_names": False,
@@ -215,30 +216,59 @@ def prepare_log_dir(
     return resolved_log_path
 
 
-def normalize_dataset_records(dataset_name: str, data):
+def normalize_instance_id(dataset_name: str, instance_id) -> str:
+    normalized_id = str(instance_id).strip()
     dataset_key = normalize_dataset_name(dataset_name)
-    if dataset_key != "spider2":
-        return data
+    config = get_dataset_config(dataset_name)
 
+    if dataset_key == "mmqa" and normalized_id.isdigit():
+        prefixes = config.get("instance_prefixes", [])
+        if prefixes:
+            return f"{prefixes[0]}{normalized_id}"
+
+    return normalized_id
+
+
+def first_present_value(*values):
+    for value in values:
+        if value is None:
+            continue
+        if isinstance(value, str) and value.strip() == "":
+            continue
+        return value
+    return None
+
+
+def normalize_dataset_records(dataset_name: str, data):
+    config = get_dataset_config(dataset_name)
     collection_id = get_dataset_config(dataset_name).get("global_document_db_name")
+
+    def normalize_record(instance_id, item):
+        if not isinstance(item, dict):
+            raise ValueError(f"{config['dir_name']} dataset item is not a JSON object.")
+
+        record = dict(item)
+        raw_instance_id = first_present_value(record.get("id"), record.get("instance_id"), instance_id)
+        if raw_instance_id is None:
+            raise ValueError(f"{config['dir_name']} dataset item is missing 'id'")
+
+        normalized_id = normalize_instance_id(dataset_name, raw_instance_id)
+        record["raw_id"] = raw_instance_id
+        record["id"] = normalized_id
+        record["db_name"] = collection_id or record.get("db_name") or record.get("db_id")
+        return normalized_id, record
 
     if isinstance(data, dict):
         normalized = {}
         for instance_id, item in data.items():
-            record = dict(item)
-            record.setdefault("id", instance_id)
-            record["db_name"] = collection_id or record.get("db_name") or record.get("db_id")
-            normalized[instance_id] = record
+            normalized_id, record = normalize_record(instance_id, item)
+            normalized[normalized_id] = record
         return normalized
 
     normalized = {}
     for item in data:
-        record = dict(item)
-        instance_id = record.get("id") or record.get("instance_id")
-        if not instance_id:
-            raise ValueError("Spider2 dataset item is missing 'id'")
-        record["db_name"] = collection_id or record.get("db_name") or record.get("db_id")
-        normalized[instance_id] = record
+        normalized_id, record = normalize_record(None, item)
+        normalized[normalized_id] = record
     return normalized
 
 
