@@ -10,6 +10,7 @@
 
 # Run outputs and intermediate logs
 /Log/
+/Evaluation/*_ex.json
 /Run_local/log_*/
 /Run_local/uncompleted_instances_*.txt
 /Run_local/cost.json
