@@ -22,6 +22,7 @@
 !/.env.example
 /PAT.txt
 /snowflake_credential.json
+/gpt_credential.json
 /Run_local/bigquery_credentials/
 /Run_local/snowflake_credential/
 *.pem

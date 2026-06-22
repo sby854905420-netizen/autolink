@@ -1,0 +1,603 @@
+{
+  "num_samples": 120,
+  "schema_linking_model": "mistralai_Ministral-3-14B-Instruct-2512",
+  "EX": 0.03333333333333333,
+  "samples": [
+    {
+      "id": "sf002",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 7 at position 8\ninvalid identifier 'ASSET5'"
+    },
+    {
+      "id": "sf011",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier '\"BlockGroupID\"'"
+    },
+    {
+      "id": "sf012",
+      "EX": 1
+    },
+    {
+      "id": "sf014",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=1; pred_row_count=1; ordered=True"
+    },
+    {
+      "id": "sf018",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 59 at position 8\ninvalid identifier 'AD_TRACKING_ENABLED'"
+    },
+    {
+      "id": "sf040",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'ZIP_CODE'"
+    },
+    {
+      "id": "sf044",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=7; pred_row_count=0; ordered=True"
+    },
+    {
+      "id": "sf_bq012",
+      "EX": 0,
+      "error": "pred_execution_error: Write, DDL, session, and administrative statements are not allowed."
+    },
+    {
+      "id": "sf_bq017",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 6 at position 8\ninvalid identifier 'F.FEATURE_TYPE'"
+    },
+    {
+      "id": "sf_bq028",
+      "EX": 0,
+      "error": "pred_execution_error: 001003 (42000): SQL compilation error:\nsyntax error line 18 at position 38 unexpected ''IsRelease''."
+    },
+    {
+      "id": "sf_bq033",
+      "EX": 0,
+      "error": "gold_execution_error: 090105 (22000): Cannot perform SELECT. This session does not have a current database. Call 'USE DATABASE', or use a qualified name."
+    },
+    {
+      "id": "sf_bq037",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'START_POSITION'"
+    },
+    {
+      "id": "sf_bq043",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 15 at position 8\ninvalid identifier 'TCGA_HG38_DATA_V0.TCGA_HG38_DATA_V0.RNASEQ_GENE_EXPRESSION.\"gene\"'"
+    },
+    {
+      "id": "sf_bq050",
+      "EX": 0,
+      "error": "gold_execution_error: 000630 (57014): Statement reached its statement or warehouse timeout of 120 second(s) and was canceled."
+    },
+    {
+      "id": "sf_bq052",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'P.ID'"
+    },
+    {
+      "id": "sf_bq057",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 28 at position 29\ninvalid identifier '\"output_count\"'"
+    },
+    {
+      "id": "sf_bq068",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'HASH'"
+    },
+    {
+      "id": "sf_bq070",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=368; pred_row_count=0; ordered=True"
+    },
+    {
+      "id": "sf_bq072",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 30 at position 8\ninvalid identifier 'ICD.\"icd_code\"'"
+    },
+    {
+      "id": "sf_bq083",
+      "EX": 0,
+      "error": "pred_execution_error: 002040 (42601): SQL compilation error:\nUnsupported data type 'FLOAT64'."
+    },
+    {
+      "id": "sf_bq091",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'A.ID'"
+    },
+    {
+      "id": "sf_bq093",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'FROM_ADDRESS'"
+    },
+    {
+      "id": "sf_bq099",
+      "EX": 0,
+      "error": "pred_execution_error: Write, DDL, session, and administrative statements are not allowed."
+    },
+    {
+      "id": "sf_bq104",
+      "EX": 0,
+      "error": "gold_execution_error: Write, DDL, session, and administrative statements are not allowed."
+    },
+    {
+      "id": "sf_bq121",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'ID'"
+    },
+    {
+      "id": "sf_bq127",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'FAMILY_ID'"
+    },
+    {
+      "id": "sf_bq128",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'P.ID'"
+    },
+    {
+      "id": "sf_bq150",
+      "EX": 0,
+      "error": "pred_execution_error: Only one SQL statement is allowed."
+    },
+    {
+      "id": "sf_bq153",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'PARTICIPANTBARCODE'"
+    },
+    {
+      "id": "sf_bq155",
+      "EX": 0,
+      "error": "pred_execution_error: 002139 (02000): SQL compilation error:\nUnknown function LOG10."
+    },
+    {
+      "id": "sf_bq158",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=5; pred_row_count=0; ordered=True"
+    },
+    {
+      "id": "sf_bq159",
+      "EX": 0,
+      "error": "pred_execution_error: 001003 (42000): SQL compilation error:\nsyntax error line 57 at position 33 unexpected 'ORDER'.\nsyntax error line 58 at position 36 unexpected 'ORDER'.\nsyntax error line 59 at position 30 unexpected 'ORDER'.\nsyntax error line 59 at position 56 unexpected ')'."
+    },
+    {
+      "id": "sf_bq166",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 40 at position 8\ninvalid identifier '\"cyto_chromosome\"'"
+    },
+    {
+      "id": "sf_bq167",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'FROM_USERID'"
+    },
+    {
+      "id": "sf_bq176",
+      "EX": 0,
+      "error": "gold_execution_error: Write, DDL, session, and administrative statements are not allowed."
+    },
+    {
+      "id": "sf_bq182",
+      "EX": 0,
+      "error": "pred_execution_error: Write, DDL, session, and administrative statements are not allowed."
+    },
+    {
+      "id": "sf_bq187",
+      "EX": 0,
+      "error": "pred_execution_error: 002040 (42601): SQL compilation error:\nUnsupported data type 'FLOAT64'."
+    },
+    {
+      "id": "sf_bq193",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'SC.SAMPLE_REPO_NAME'"
+    },
+    {
+      "id": "sf_bq209",
+      "EX": 0,
+      "error": "pred_execution_error: 100138 (22007): Bad output format model 'YYYYMMDD' for FIXED: invalid numeric format keyword: 'YYYYMMDD'"
+    },
+    {
+      "id": "sf_bq210",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 24 at position 8\ninvalid identifier 'TITLE'"
+    },
+    {
+      "id": "sf_bq213",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'P.PUBLICATION_NUMBER'"
+    },
+    {
+      "id": "sf_bq216",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'PUBLICATION_NUMBER'"
+    },
+    {
+      "id": "sf_bq219",
+      "EX": 0,
+      "error": "pred_execution_error: 001003 (42000): SQL compilation error:\nsyntax error line 47 at position 37 unexpected 'ORDER'.\nsyntax error line 48 at position 9 unexpected 'FROM'.\nsyntax error line 51 at position 22 unexpected 'c1'."
+    },
+    {
+      "id": "sf_bq221",
+      "EX": 0,
+      "error": "pred_execution_error: 001003 (42000): SQL compilation error:\nsyntax error line 5 at position 13 unexpected '->'.\nsyntax error line 28 at position 19 unexpected '->>'.\nsyntax error line 35 at position 25 unexpected ''code''."
+    },
+    {
+      "id": "sf_bq222",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=15; pred_row_count=0; ordered=True"
+    },
+    {
+      "id": "sf_bq223",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'P1.PUBLICATION_NUMBER'"
+    },
+    {
+      "id": "sf_bq224",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 19\ninvalid identifier 'REPO'"
+    },
+    {
+      "id": "sf_bq233",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'SC.SAMPLE_REPO_NAME'"
+    },
+    {
+      "id": "sf_bq236",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'CZ_FIPS_CODE'"
+    },
+    {
+      "id": "sf_bq246",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'P.PATENT_ID'"
+    },
+    {
+      "id": "sf_bq248",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=1; pred_row_count=1; ordered=False"
+    },
+    {
+      "id": "sf_bq250",
+      "EX": 0,
+      "error": "pred_execution_error: 002139 (02000): SQL compilation error:\nUnknown function ST_CONVEXHULL."
+    },
+    {
+      "id": "sf_bq252",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=1; pred_row_count=1; ordered=True"
+    },
+    {
+      "id": "sf_bq254",
+      "EX": 0,
+      "error": "gold_execution_error: 000604 (57014): SQL execution was cancelled by the client due to a timeout. Error message received from the server: SQL execution canceled"
+    },
+    {
+      "id": "sf_bq255",
+      "EX": 0,
+      "error": "gold_execution_error: Write, DDL, session, and administrative statements are not allowed."
+    },
+    {
+      "id": "sf_bq260",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'ID'"
+    },
+    {
+      "id": "sf_bq263",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 34\ninvalid identifier 'CREATED_AT'"
+    },
+    {
+      "id": "sf_bq264",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=1; pred_row_count=1; ordered=False"
+    },
+    {
+      "id": "sf_bq265",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'U.ID'"
+    },
+    {
+      "id": "sf_bq271",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 41\ninvalid identifier 'CREATED_AT'"
+    },
+    {
+      "id": "sf_bq273",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'ORDER_CREATED_MONTH'"
+    },
+    {
+      "id": "sf_bq289",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'PLACE_ID'"
+    },
+    {
+      "id": "sf_bq291",
+      "EX": 0,
+      "error": "pred_execution_error: 001003 (42000): SQL compilation error:\nsyntax error line 32 at position 62 unexpected 'GEOGRAPHY_SRID'.\nsyntax error line 33 at position 45 unexpected 'GEOGRAPHY_SRID'.\nsyntax error line 33 at position 60 unexpected '::'."
+    },
+    {
+      "id": "sf_bq294",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'TRIP_ID'"
+    },
+    {
+      "id": "sf_bq295",
+      "EX": 0,
+      "error": "pred_execution_error: 001003 (42000): SQL compilation error:\nsyntax error line 3 at position 49 unexpected '->'.\nsyntax error line 12 at position 53 unexpected '->'.\nsyntax error line 12 at position 56 unexpected ''$.name''.\nsyntax error line 26 at position 18 unexpected '->'.\nsyntax error line 26 at position 21 unexpected ''$.name''."
+    },
+    {
+      "id": "sf_bq320",
+      "EX": 1
+    },
+    {
+      "id": "sf_bq321",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 2 at position 20\ninvalid identifier 'STUDYINSTANCEUID'"
+    },
+    {
+      "id": "sf_bq334",
+      "EX": 0,
+      "error": "pred_execution_error: 001003 (42000): SQL compilation error:\nsyntax error line 24 at position 4 unexpected 'to'.\nsyntax error line 29 at position 25 unexpected 'to'."
+    },
+    {
+      "id": "sf_bq341",
+      "EX": 0,
+      "error": "pred_execution_error: 001003 (42000): SQL compilation error:\nsyntax error line 4 at position 26 unexpected 'AS'.\nsyntax error line 4 at position 26 unexpected 'AS'.\nsyntax error line 9 at position 22 unexpected '\"value\"'.\nsyntax error line 9 at position 42 unexpected '>'."
+    },
+    {
+      "id": "sf_bq345",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'COLLECTION_ID'"
+    },
+    {
+      "id": "sf_bq346",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 19\ninvalid identifier 'SEGMENTED_PROPERTY_CATEGORY_CODE_SEQUENCE'"
+    },
+    {
+      "id": "sf_bq347",
+      "EX": 1
+    },
+    {
+      "id": "sf_bq349",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'GEO_OPENSTREETMAP_CENSUS_PLACES.GEO_OPENSTREETMAP.PLANET_FEATURES.OSM_WAY_ID'"
+    },
+    {
+      "id": "sf_bq358",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 5 at position 8\ninvalid identifier 'MAX'"
+    },
+    {
+      "id": "sf_bq359",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'REPO_NAME'"
+    },
+    {
+      "id": "sf_bq377",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'SAMPLE_REPO_NAME'"
+    },
+    {
+      "id": "sf_bq390",
+      "EX": 0,
+      "error": "pred_execution_error: 001003 (42000): SQL compilation error:\nsyntax error line 12 at position 52 unexpected '->>'.\nsyntax error line 13 at position 63 unexpected ''CodeMeaning''."
+    },
+    {
+      "id": "sf_bq412",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'CREATIVE_PAGE_URL'"
+    },
+    {
+      "id": "sf_bq421",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 2 at position 4\ninvalid identifier 'ALIAS1.\"CodeMeaning\"'"
+    },
+    {
+      "id": "sf_bq422",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=2; pred_row_count=2; ordered=True"
+    },
+    {
+      "id": "sf_bq429",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'GEO_ID'"
+    },
+    {
+      "id": "sf_bq444",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'BLOCK_TIMESTAMP'"
+    },
+    {
+      "id": "sf_bq455",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 29 at position 8\ninvalid identifier '\"series_size_bytes\"'"
+    },
+    {
+      "id": "sf_ga001",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'OI.PRODUCT_ID'"
+    },
+    {
+      "id": "sf_local003",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'C.CUSTOMER_UNIQUE_ID'"
+    },
+    {
+      "id": "sf_local004",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'C.CUSTOMER_ID'"
+    },
+    {
+      "id": "sf_local009",
+      "EX": 0,
+      "error": "pred_execution_error: 001003 (42000): SQL compilation error:\nsyntax error line 25 at position 35 unexpected 'FROM'.\nsyntax error line 25 at position 55 unexpected 'AS'."
+    },
+    {
+      "id": "sf_local010",
+      "EX": 0,
+      "error": "gold_execution_error: Write, DDL, session, and administrative statements are not allowed."
+    },
+    {
+      "id": "sf_local015",
+      "EX": 0,
+      "error": "pred_execution_error: 001003 (42000): SQL compilation error:\nsyntax error line 24 at position 99 unexpected 'AS'.\nsyntax error line 25 at position 8 unexpected 'ELSE'."
+    },
+    {
+      "id": "sf_local019",
+      "EX": 1
+    },
+    {
+      "id": "sf_local022",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 2 at position 11\ninvalid identifier 'M.MATCH_ID'"
+    },
+    {
+      "id": "sf_local026",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'M.MATCH_ID'"
+    },
+    {
+      "id": "sf_local028",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 34\ninvalid identifier 'ORDER_DELIVERED_CUSTOMER_DATE'"
+    },
+    {
+      "id": "sf_local030",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 4 at position 12\ninvalid identifier 'P.PAYMENT_AMOUNT'"
+    },
+    {
+      "id": "sf_local038",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'F.FILM_ID'"
+    },
+    {
+      "id": "sf_local039",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'F.FILM_ID'"
+    },
+    {
+      "id": "sf_local056",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'P.CUSTOMER_ID'"
+    },
+    {
+      "id": "sf_local064",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'CUSTOMER_ID'"
+    },
+    {
+      "id": "sf_local075",
+      "EX": 0,
+      "error": "pred_execution_error: 002004 (42601): SQL compilation error:\nInvalid identifier PAGE_ID"
+    },
+    {
+      "id": "sf_local157",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'TICKER'"
+    },
+    {
+      "id": "sf_local194",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'F.FILM_ID'"
+    },
+    {
+      "id": "sf_local195",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 2 at position 11\ninvalid identifier 'ACTOR_ID'"
+    },
+    {
+      "id": "sf_local199",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'STORE_ID'"
+    },
+    {
+      "id": "sf_local209",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'S.STORE_ID'"
+    },
+    {
+      "id": "sf_local210",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'H.HUB_ID'"
+    },
+    {
+      "id": "sf_local218",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=1; pred_row_count=1; ordered=False"
+    },
+    {
+      "id": "sf_local244",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 12\ninvalid identifier 'MILLISECONDS'"
+    },
+    {
+      "id": "sf_local263",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'M.NAME'"
+    },
+    {
+      "id": "sf_local269",
+      "EX": 0,
+      "error": "pred_execution_error: Only one SQL statement is allowed."
+    },
+    {
+      "id": "sf_local283",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'M.SEASON'"
+    },
+    {
+      "id": "sf_local285",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'VWHSLE.ITEM_CODE'"
+    },
+    {
+      "id": "sf_local299",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'CUSTOMER_ID'"
+    },
+    {
+      "id": "sf_local300",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'C.CUSTOMER_ID'"
+    },
+    {
+      "id": "sf_local309",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'D.YEAR'"
+    },
+    {
+      "id": "sf_local311",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'C.CONSTRUCTOR_ID'"
+    },
+    {
+      "id": "sf_local329",
+      "EX": 0,
+      "error": "pred_execution_error: 001003 (42000): SQL compilation error:\nsyntax error line 17 at position 4 unexpected 'SELECT'.\nsyntax error line 21 at position 4 unexpected 'QUALIFY'."
+    },
+    {
+      "id": "sf_local336",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'L1.RACE_ID'"
+    },
+    {
+      "id": "sf_local354",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'D.DRIVER_ID'"
+    },
+    {
+      "id": "sf_local355",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'D.DRIVER_ID'"
+    },
+    {
+      "id": "sf_local360",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 8\ninvalid identifier 'SESSION'"
+    }
+  ]
+}

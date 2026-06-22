@@ -7,6 +7,7 @@ import os
 import re
 import sqlite3
 import sys
+import time
 from collections import Counter
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
@@ -24,6 +25,7 @@ from utils import (
 
 
 MMQA_SQLITE_DIR = os.path.join(get_mmqa_data_dir(), "Sqlite_database")
+DEFAULT_QUERY_TIMEOUT_SECONDS = 120.0
 ORDER_BY_PATTERN = re.compile(r"\border\s+by\b", flags=re.IGNORECASE)
 QUALIFIED_TABLE_PATTERN = re.compile(r'"([A-Za-z0-9_]+)\.([A-Za-z0-9_]+)"')
 QUOTED_DB_TABLE_PATTERN = re.compile(r'"([A-Za-z0-9_]+)"\s*\.\s*"([A-Za-z0-9_]+)"')
@@ -60,6 +62,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output_path", type=Path, default=None)
     parser.add_argument("--start_index", type=int, default=0)
     parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument(
+        "--query_timeout",
+        type=float,
+        default=DEFAULT_QUERY_TIMEOUT_SECONDS,
+        help="Per-SQL execution timeout in seconds. Timed-out queries are scored as failures.",
+    )
     parser.add_argument(
         "--instance_id",
         action="append",
@@ -301,7 +309,7 @@ def load_snowflake_credentials(dataset_name: str) -> dict[str, Any]:
         return json.load(f)
 
 
-def snowflake_connection_params(dataset_name: str) -> dict[str, Any]:
+def snowflake_connection_params(dataset_name: str, query_timeout: float) -> dict[str, Any]:
     credentials = load_snowflake_credentials(dataset_name)
     user = os.environ.get("SNOWFLAKE_USER") or credentials.get("user") or credentials.get("username")
     password = (
@@ -340,11 +348,11 @@ def snowflake_connection_params(dataset_name: str) -> dict[str, Any]:
         "warehouse": warehouse,
         "role": role,
         "login_timeout": int(os.environ.get("SNOWFLAKE_LOGIN_TIMEOUT", "30")),
-        "network_timeout": int(os.environ.get("SNOWFLAKE_NETWORK_TIMEOUT", "120")),
+        "network_timeout": int(math.ceil(query_timeout)),
         "client_session_keep_alive": False,
         "session_parameters": {
             "QUERY_TAG": os.environ.get("SNOWFLAKE_QUERY_TAG", "autolink_ex_evaluation"),
-            "STATEMENT_TIMEOUT_IN_SECONDS": int(os.environ.get("SNOWFLAKE_STATEMENT_TIMEOUT", "120")),
+            "STATEMENT_TIMEOUT_IN_SECONDS": int(math.ceil(query_timeout)),
         },
     }
 
@@ -360,7 +368,32 @@ def sqlite_db_path(db_id: str) -> Path:
     return Path(MMQA_SQLITE_DIR) / f"{db_id}.sqlite"
 
 
-def sqlite_fetch(sql: str, gold_db_id: str) -> list[tuple[Any, ...]]:
+def fetch_sqlite_with_timeout(
+    conn: sqlite3.Connection,
+    statement: str,
+    query_timeout: float,
+) -> list[tuple[Any, ...]]:
+    deadline = time.monotonic() + query_timeout
+
+    def abort_when_timed_out() -> int:
+        return 1 if time.monotonic() > deadline else 0
+
+    cursor = None
+    conn.set_progress_handler(abort_when_timed_out, 1000)
+    try:
+        cursor = conn.execute(statement)
+        return list(cursor.fetchall())
+    except sqlite3.OperationalError as exc:
+        if "interrupted" in str(exc).lower():
+            raise TimeoutError(f"SQL execution exceeded {query_timeout:.0f}s") from exc
+        raise
+    finally:
+        conn.set_progress_handler(None, 0)
+        if cursor is not None:
+            cursor.close()
+
+
+def sqlite_fetch(sql: str, gold_db_id: str, query_timeout: float) -> list[tuple[Any, ...]]:
     statement = validate_sql(normalize_attached_table_references(sql))
     referenced_db_ids = extract_referenced_db_ids(statement)
 
@@ -374,8 +407,7 @@ def sqlite_fetch(sql: str, gold_db_id: str) -> list[tuple[Any, ...]]:
                 if not db_path.is_file():
                     raise FileNotFoundError(f"SQLite database not found: {db_path}")
                 conn.execute(f'ATTACH DATABASE ? AS "{db_id}"', (str(db_path),))
-            cursor = conn.execute(statement)
-            return list(cursor.fetchall())
+            return fetch_sqlite_with_timeout(conn, statement, query_timeout)
         finally:
             conn.close()
 
@@ -384,15 +416,15 @@ def sqlite_fetch(sql: str, gold_db_id: str) -> list[tuple[Any, ...]]:
         raise FileNotFoundError(f"Gold SQLite database not found: {db_path}")
     conn = sqlite3.connect(str(db_path))
     try:
-        cursor = conn.execute(statement)
-        return list(cursor.fetchall())
+        return fetch_sqlite_with_timeout(conn, statement, query_timeout)
     finally:
         conn.close()
 
 
 class SnowflakeExecutor:
-    def __init__(self, dataset_name: str):
+    def __init__(self, dataset_name: str, query_timeout: float):
         self.dataset_name = dataset_name
+        self.query_timeout = query_timeout
         self.conn = None
 
     def __enter__(self) -> "SnowflakeExecutor":
@@ -410,16 +442,26 @@ class SnowflakeExecutor:
         if self.conn is None:
             import snowflake.connector
 
-            self.conn = snowflake.connector.connect(**snowflake_connection_params(self.dataset_name))
+            self.conn = snowflake.connector.connect(
+                **snowflake_connection_params(self.dataset_name, self.query_timeout)
+            )
         return self.conn
 
     def fetch(self, sql: str) -> list[tuple[Any, ...]]:
         statement = validate_sql(sql)
+        deadline = time.monotonic() + self.query_timeout
         cursor = None
         try:
             cursor = self.connect().cursor()
-            cursor.execute(statement)
-            return list(cursor.fetchall())
+            cursor.execute(statement, timeout=int(math.ceil(self.query_timeout)))
+            rows: list[tuple[Any, ...]] = []
+            while True:
+                if time.monotonic() > deadline:
+                    raise TimeoutError(f"SQL execution exceeded {self.query_timeout:.0f}s")
+                batch = cursor.fetchmany(1000)
+                if not batch:
+                    return rows
+                rows.extend(tuple(row) for row in batch)
         finally:
             if cursor is not None:
                 cursor.close()
@@ -475,10 +517,11 @@ def execute_query(
     dataset_name: str,
     gold_db_id: str,
     snowflake_executor: SnowflakeExecutor | None,
+    query_timeout: float,
 ) -> list[tuple[Any, ...]]:
     backend = get_execution_backend(dataset_name)
     if backend == "sqlite":
-        return sqlite_fetch(sql, gold_db_id)
+        return sqlite_fetch(sql, gold_db_id, query_timeout)
     if backend == "snowflake":
         if snowflake_executor is None:
             raise RuntimeError("Snowflake executor is not initialized.")
@@ -494,6 +537,7 @@ def evaluate_instance(
     gold_sql_by_id: Mapping[str, str],
     prediction_records: Mapping[str, dict[str, Any]],
     snowflake_executor: SnowflakeExecutor | None,
+    query_timeout: float,
 ) -> dict[str, Any]:
     dataset_row = dataset_index.get(instance_id, {})
     gold_db_id = str(dataset_row.get("db_id") or dataset_row.get("gold_db_id") or "").strip()
@@ -525,6 +569,7 @@ def evaluate_instance(
             dataset_name=dataset_name,
             gold_db_id=gold_db_id,
             snowflake_executor=snowflake_executor,
+            query_timeout=query_timeout,
         )
         result["gold_row_count"] = len(gold_rows)
     except Exception as exc:
@@ -538,6 +583,7 @@ def evaluate_instance(
             dataset_name=dataset_name,
             gold_db_id=gold_db_id,
             snowflake_executor=snowflake_executor,
+            query_timeout=query_timeout,
         )
         result["pred_row_count"] = len(pred_rows)
     except Exception as exc:
@@ -594,7 +640,7 @@ def evaluate_ex(args: argparse.Namespace) -> Path:
 
     records: list[dict[str, Any]] = []
     snowflake_context = (
-        SnowflakeExecutor(dataset_name)
+        SnowflakeExecutor(dataset_name, args.query_timeout)
         if get_execution_backend(dataset_name) == "snowflake"
         else None
     )
@@ -610,6 +656,7 @@ def evaluate_ex(args: argparse.Namespace) -> Path:
                     gold_sql_by_id=gold_sql_by_id,
                     prediction_records=prediction_records,
                     snowflake_executor=snowflake_executor,
+                    query_timeout=args.query_timeout,
                 )
                 records.append(record)
                 if index % 25 == 0:

@@ -1,13 +1,19 @@
 import os
 import threading
 import importlib.util
+import json
 from dataclasses import dataclass
 from typing import Any
+from pathlib import Path
 
 from progress_logger import get_progress_logger
 
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_HF_MODEL_NAME = "Qwen/Qwen2.5-7B-Instruct"
+DEFAULT_OPENAI_MODEL_NAME = "gpt-5-mini-2025-08-07"
+DEFAULT_OPENAI_CONTEXT_LENGTH = 120000
+DEFAULT_OPENAI_MAX_OUTPUT_TOKENS = 4096
 DEFAULT_QWEN25_CONTEXT_LENGTH = 131072
 DEFAULT_MINISTRAL3_CONTEXT_LENGTH = 262144
 DEFAULT_HF_CONTEXT_LENGTH = DEFAULT_QWEN25_CONTEXT_LENGTH
@@ -19,6 +25,14 @@ DEFAULT_HF_YARN_ORIGINAL_MAX_POSITION_EMBEDDINGS = 32768
 
 def _normalise_model_name(model_name: str) -> str:
     return (model_name or "").strip().lower()
+
+
+def _is_openai_model_name(model_name: str) -> bool:
+    return _normalise_model_name(model_name).startswith("gpt-")
+
+
+def _uses_responses_api(model_name: str) -> bool:
+    return _normalise_model_name(model_name).startswith("gpt-5")
 
 
 def _is_qwen_model(model_name: str, config=None) -> bool:
@@ -86,6 +100,60 @@ def _env_float(name: str, default: float) -> float:
         return float(value)
     except ValueError:
         return default
+
+
+def _load_openai_client_kwargs() -> dict[str, Any]:
+    kwargs: dict[str, Any] = {}
+    api_key = os.environ.get("OPENAI_API_KEY") or os.environ.get("GPT_API")
+    base_url = os.environ.get("OPENAI_BASE_URL") or os.environ.get("GPT_BASE_URL")
+
+    credential_path = PROJECT_ROOT / "gpt_credential.json"
+    if credential_path.is_file():
+        try:
+            credential = json.loads(credential_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            credential = {}
+        if isinstance(credential, dict):
+            api_key = api_key or credential.get("api_key") or credential.get("key")
+            base_url = base_url or credential.get("base_url") or credential.get("url")
+
+    if api_key:
+        kwargs["api_key"] = str(api_key)
+    if base_url:
+        kwargs["base_url"] = str(base_url)
+    return kwargs
+
+
+def _extract_responses_text(response: Any) -> str:
+    output_text = getattr(response, "output_text", None)
+    if output_text:
+        return str(output_text)
+
+    parts: list[str] = []
+    output = getattr(response, "output", None)
+    if output is None and isinstance(response, dict):
+        output = response.get("output")
+    for item in output or []:
+        content = item.get("content") if isinstance(item, dict) else getattr(item, "content", None)
+        for block in content or []:
+            text = block.get("text") if isinstance(block, dict) else getattr(block, "text", None)
+            if text:
+                parts.append(str(text))
+    return "".join(parts)
+
+
+def _usage_value(usage: Any, *keys: str) -> int:
+    if usage is None:
+        return 0
+    for key in keys:
+        value = usage.get(key) if isinstance(usage, dict) else getattr(usage, key, None)
+        if value is None:
+            continue
+        try:
+            return max(0, int(value or 0))
+        except (TypeError, ValueError):
+            continue
+    return 0
 
 
 def _resolve_torch_dtype(torch_module, dtype_name: str):
@@ -419,6 +487,90 @@ class HFTransformersChatBackend:
         return ChatResult(content=content, response_data=response_data)
 
 
+class OpenAIChatBackend:
+    def __init__(self):
+        self._logger = get_progress_logger(__name__)
+        self.model_name = (
+            os.environ.get("OPENAI_MODEL")
+            or os.environ.get("GPT_MODEL")
+            or os.environ.get("HF_MODEL_NAME")
+            or DEFAULT_OPENAI_MODEL_NAME
+        )
+        self.context_length = _env_int("OPENAI_CONTEXT_LENGTH", DEFAULT_OPENAI_CONTEXT_LENGTH)
+        self.max_output_tokens = _env_int(
+            "OPENAI_MAX_OUTPUT_TOKENS",
+            _env_int("HF_MAX_NEW_TOKENS", DEFAULT_OPENAI_MAX_OUTPUT_TOKENS),
+        )
+        self.temperature = _env_float("OPENAI_TEMPERATURE", 0.0)
+        self._client = None
+        self._lock = threading.Lock()
+
+    def _load(self):
+        with self._lock:
+            if self._client is not None:
+                return
+            try:
+                from openai import OpenAI
+            except ImportError as exc:
+                raise RuntimeError(
+                    "OpenAI backend requires the openai Python package. "
+                    "Install it in the autolink environment before using GPT models."
+                ) from exc
+
+            self._logger.info("Initialising OpenAI chat model %s", self.model_name)
+            self._client = OpenAI(**_load_openai_client_kwargs())
+
+    def chat(self, messages: list[dict[str, str]]) -> ChatResult:
+        self._load()
+        if _uses_responses_api(self.model_name):
+            if not hasattr(self._client, "responses"):
+                raise RuntimeError(
+                    "GPT-5 models require an OpenAI Python SDK version with the Responses API. "
+                    "Please upgrade the openai package."
+                )
+            response = self._client.responses.create(
+                model=self.model_name,
+                input=messages,
+                max_output_tokens=self.max_output_tokens,
+                timeout=100.0,
+            )
+            content = _extract_responses_text(response)
+            usage = getattr(response, "usage", None)
+            prompt_tokens = _usage_value(usage, "prompt_tokens", "input_tokens")
+            completion_tokens = _usage_value(usage, "completion_tokens", "output_tokens")
+            total_tokens = _usage_value(usage, "total_tokens") or prompt_tokens + completion_tokens
+        else:
+            response = self._client.chat.completions.create(
+                model=self.model_name,
+                messages=messages,
+                max_tokens=self.max_output_tokens,
+                temperature=self.temperature,
+                timeout=100.0,
+            )
+            content = response.choices[0].message.content or ""
+            usage = getattr(response, "usage", None)
+            prompt_tokens = _usage_value(usage, "prompt_tokens")
+            completion_tokens = _usage_value(usage, "completion_tokens")
+            total_tokens = _usage_value(usage, "total_tokens") or prompt_tokens + completion_tokens
+
+        response_data = {
+            "backend": "openai_responses" if _uses_responses_api(self.model_name) else "openai_chat_completions",
+            "model": self.model_name,
+            "usage": {
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "input_tokens": prompt_tokens,
+                "output_tokens": completion_tokens,
+                "total_tokens": total_tokens,
+            },
+            "context_length": self.context_length,
+            "max_output_tokens": self.max_output_tokens,
+        }
+        if not content:
+            raise RuntimeError(f"OpenAI model returned an empty response: {response_data}")
+        return ChatResult(content=content, response_data=response_data)
+
+
 _backend = None
 _backend_lock = threading.Lock()
 
@@ -429,7 +581,22 @@ def get_chat_backend():
         if _backend is not None:
             return _backend
 
-        _backend = HFTransformersChatBackend()
+        backend_name = os.environ.get("LLM_BACKEND", "auto").strip().lower()
+        model_name = (
+            os.environ.get("OPENAI_MODEL")
+            or os.environ.get("GPT_MODEL")
+            or os.environ.get("HF_MODEL_NAME")
+            or DEFAULT_HF_MODEL_NAME
+        )
+        if backend_name == "auto":
+            backend_name = "openai" if _is_openai_model_name(model_name) else "hf_transformers"
+
+        if backend_name in {"openai", "gpt"}:
+            _backend = OpenAIChatBackend()
+        elif backend_name in {"hf", "hf_transformers", "transformers"}:
+            _backend = HFTransformersChatBackend()
+        else:
+            raise ValueError(f"Unsupported LLM_BACKEND: {backend_name}")
         return _backend
 
 

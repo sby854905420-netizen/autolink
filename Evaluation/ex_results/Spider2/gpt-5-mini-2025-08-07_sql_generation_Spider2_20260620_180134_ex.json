@@ -1,0 +1,594 @@
+{
+  "num_samples": 120,
+  "schema_linking_model": "mistralai_Ministral-3-14B-Instruct-2512",
+  "EX": 0.10833333333333334,
+  "samples": [
+    {
+      "id": "sf002",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=10; pred_row_count=0; ordered=True"
+    },
+    {
+      "id": "sf011",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 5 at position 4\ninvalid identifier 'FCV.\"MetricValue\"'"
+    },
+    {
+      "id": "sf012",
+      "EX": 1
+    },
+    {
+      "id": "sf014",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=1; pred_row_count=1; ordered=True"
+    },
+    {
+      "id": "sf018",
+      "EX": 0,
+      "error": "pred_execution_error: Only one SQL statement is allowed."
+    },
+    {
+      "id": "sf040",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=10; pred_row_count=10; ordered=True"
+    },
+    {
+      "id": "sf044",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=7; pred_row_count=0; ordered=True"
+    },
+    {
+      "id": "sf_bq012",
+      "EX": 0,
+      "error": "pred_execution_error: 001003 (42000): SQL compilation error:\nsyntax error line 62 at position 38 unexpected '<EOF>'."
+    },
+    {
+      "id": "sf_bq017",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 5 at position 9\ninvalid identifier '\"properties\"'"
+    },
+    {
+      "id": "sf_bq028",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 4\ninvalid identifier 'NAME'"
+    },
+    {
+      "id": "sf_bq033",
+      "EX": 0,
+      "error": "gold_execution_error: 090105 (22000): Cannot perform SELECT. This session does not have a current database. Call 'USE DATABASE', or use a qualified name."
+    },
+    {
+      "id": "sf_bq037",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=2; pred_row_count=1; ordered=True"
+    },
+    {
+      "id": "sf_bq043",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=7; pred_row_count=0; ordered=True"
+    },
+    {
+      "id": "sf_bq050",
+      "EX": 0,
+      "error": "missing_pred_sql"
+    },
+    {
+      "id": "sf_bq052",
+      "EX": 0,
+      "error": "pred_execution_error: 100040 (22007): Date '1989-05-00' is not recognized"
+    },
+    {
+      "id": "sf_bq057",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 4\ninvalid identifier 'HASH'"
+    },
+    {
+      "id": "sf_bq068",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 4 at position 21\ninvalid identifier 'T.BLOCK_TIMESTAMP'"
+    },
+    {
+      "id": "sf_bq070",
+      "EX": 0,
+      "error": "pred_execution_error: 001003 (42000): SQL compilation error:\nsyntax error line 29 at position 53 unexpected '<EOF>'."
+    },
+    {
+      "id": "sf_bq072",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=7; pred_row_count=7; ordered=True"
+    },
+    {
+      "id": "sf_bq083",
+      "EX": 0,
+      "error": "pred_execution_error: 002040 (42601): SQL compilation error:\nUnsupported data type 'FLOAT64'."
+    },
+    {
+      "id": "sf_bq091",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 32 at position 25\ninvalid identifier 'T.\"assignee_id\"'"
+    },
+    {
+      "id": "sf_bq093",
+      "EX": 0,
+      "error": "pred_execution_error: 001003 (42000): SQL compilation error:\nparse error line 24 at position 32 near '<EOF>'.\nsyntax error line 24 at position 32 unexpected '<EOF>'."
+    },
+    {
+      "id": "sf_bq099",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=3; pred_row_count=0; ordered=True"
+    },
+    {
+      "id": "sf_bq104",
+      "EX": 0,
+      "error": "gold_execution_error: Write, DDL, session, and administrative statements are not allowed."
+    },
+    {
+      "id": "sf_bq121",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=14; pred_row_count=14; ordered=True"
+    },
+    {
+      "id": "sf_bq127",
+      "EX": 0,
+      "error": "pred_execution_error: 000630 (57014): Statement reached its statement or warehouse timeout of 120 second(s) and was canceled."
+    },
+    {
+      "id": "sf_bq128",
+      "EX": 0,
+      "error": "pred_execution_error: 001003 (42000): SQL compilation error:\nparse error line 17 at position 98 near '<EOF>'.\nsyntax error line 17 at position 98 unexpected '<EOF>'."
+    },
+    {
+      "id": "sf_bq150",
+      "EX": 0,
+      "error": "pred_execution_error: 000979 (42601): SQL compilation error:\n[A.TOTAL_SAMPLES] is not a valid group by expression"
+    },
+    {
+      "id": "sf_bq153",
+      "EX": 0,
+      "error": "pred_execution_error: 000938 (22023): SQL compilation error: error line 12 at position 10\nnot enough arguments for function [LOG(IGF2_SAMPLES.\"normalized_count\" + (CAST(1 AS FLOAT)))], expected 2, got 1"
+    },
+    {
+      "id": "sf_bq155",
+      "EX": 0,
+      "error": "pred_execution_error: 001003 (42000): SQL compilation error:\nsyntax error line 14 at position 71 unexpected '<EOF>'."
+    },
+    {
+      "id": "sf_bq158",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 2 at position 18\ninvalid identifier '\"ParticipantBarcode\"'"
+    },
+    {
+      "id": "sf_bq159",
+      "EX": 0,
+      "error": "missing_pred_sql"
+    },
+    {
+      "id": "sf_bq166",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=305; pred_row_count=1232; ordered=True"
+    },
+    {
+      "id": "sf_bq167",
+      "EX": 1
+    },
+    {
+      "id": "sf_bq176",
+      "EX": 0,
+      "error": "gold_execution_error: Write, DDL, session, and administrative statements are not allowed."
+    },
+    {
+      "id": "sf_bq182",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 4 at position 4\ninvalid identifier 'F.\"key\"'"
+    },
+    {
+      "id": "sf_bq187",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=1; pred_row_count=1; ordered=False"
+    },
+    {
+      "id": "sf_bq193",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 2 at position 9\ninvalid identifier 'SAMPLE_REPO_NAME'"
+    },
+    {
+      "id": "sf_bq209",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=1; pred_row_count=1; ordered=False"
+    },
+    {
+      "id": "sf_bq210",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=1; pred_row_count=1; ordered=False"
+    },
+    {
+      "id": "sf_bq213",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=1; pred_row_count=1; ordered=True"
+    },
+    {
+      "id": "sf_bq216",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=5; pred_row_count=0; ordered=True"
+    },
+    {
+      "id": "sf_bq219",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 15 at position 13\ninvalid identifier 'S.VOLUME_SOLD_LITERS'"
+    },
+    {
+      "id": "sf_bq221",
+      "EX": 0,
+      "error": "missing_pred_sql"
+    },
+    {
+      "id": "sf_bq222",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 73 at position 23\ninvalid identifier 'W.CPC_GROUP'"
+    },
+    {
+      "id": "sf_bq223",
+      "EX": 0,
+      "error": "pred_execution_error: 001003 (42000): SQL compilation error:\nsyntax error line 5 at position 28 unexpected '<EOF>'."
+    },
+    {
+      "id": "sf_bq224",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=1; pred_row_count=1; ordered=True"
+    },
+    {
+      "id": "sf_bq233",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 2 at position 9\ninvalid identifier 'F.REPO_NAME'"
+    },
+    {
+      "id": "sf_bq236",
+      "EX": 0,
+      "error": "pred_execution_error: 001044 (42P13): SQL compilation error: error line 16 at position 5\nInvalid argument types for function 'ST_WITHIN': (GEOGRAPHY, BINARY(8388608))"
+    },
+    {
+      "id": "sf_bq246",
+      "EX": 0,
+      "error": "pred_execution_error: 001003 (42000): SQL compilation error:\nsyntax error line 19 at position 6 unexpected 'SELECT'.\nsyntax error line 19 at position 18 unexpected '('.\nsyntax error line 19 at position 19 unexpected '*'.\nsyntax error line 20 at position 6 unexpected 'FROM'."
+    },
+    {
+      "id": "sf_bq248",
+      "EX": 0,
+      "error": "pred_execution_error: 001065 (22023): SQL compilation error:\nFunction TRY_CAST cannot be used with arguments of types VARIANT and VARCHAR(134217728)"
+    },
+    {
+      "id": "sf_bq250",
+      "EX": 0,
+      "error": "pred_execution_error: 002028 (42601): SQL compilation error:\nambiguous column name 'last_updated'"
+    },
+    {
+      "id": "sf_bq252",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=1; pred_row_count=1; ordered=True"
+    },
+    {
+      "id": "sf_bq254",
+      "EX": 0,
+      "error": "gold_execution_error: 000630 (57014): Statement reached its statement or warehouse timeout of 120 second(s) and was canceled."
+    },
+    {
+      "id": "sf_bq255",
+      "EX": 0,
+      "error": "gold_execution_error: Write, DDL, session, and administrative statements are not allowed."
+    },
+    {
+      "id": "sf_bq260",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=2; pred_row_count=2; ordered=False"
+    },
+    {
+      "id": "sf_bq263",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=12; pred_row_count=12; ordered=True"
+    },
+    {
+      "id": "sf_bq264",
+      "EX": 1
+    },
+    {
+      "id": "sf_bq265",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=10; pred_row_count=10; ordered=True"
+    },
+    {
+      "id": "sf_bq271",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=690; pred_row_count=691; ordered=True"
+    },
+    {
+      "id": "sf_bq273",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 4\ninvalid identifier 'O.ORDER_ID'"
+    },
+    {
+      "id": "sf_bq289",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 2 at position 9\ninvalid identifier 'INTERNAL_POINT_LON'"
+    },
+    {
+      "id": "sf_bq291",
+      "EX": 0,
+      "error": "pred_execution_error: 001003 (42000): SQL compilation error:\nsyntax error line 41 at position 68 unexpected '<EOF>'."
+    },
+    {
+      "id": "sf_bq294",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=5; pred_row_count=5; ordered=True"
+    },
+    {
+      "id": "sf_bq295",
+      "EX": 1
+    },
+    {
+      "id": "sf_bq320",
+      "EX": 1
+    },
+    {
+      "id": "sf_bq321",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=1; pred_row_count=1; ordered=False"
+    },
+    {
+      "id": "sf_bq334",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=9; pred_row_count=9; ordered=True"
+    },
+    {
+      "id": "sf_bq341",
+      "EX": 0,
+      "error": "pred_execution_error: 001003 (42000): SQL compilation error:\nsyntax error line 4 at position 34 unexpected 'AS'.\nsyntax error line 4 at position 34 unexpected 'AS'.\nsyntax error line 4 at position 47 unexpected '0'.\nsyntax error line 4 at position 53 unexpected 'amt'.\nsyntax error line 10 at position 35 unexpected 'AS'.\nsyntax error line 10 at position 35 unexpected 'AS'."
+    },
+    {
+      "id": "sf_bq345",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 2 at position 2\ninvalid identifier 'D.COLLECTION_ID'"
+    },
+    {
+      "id": "sf_bq346",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=5; pred_row_count=0; ordered=True"
+    },
+    {
+      "id": "sf_bq347",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=1; pred_row_count=1; ordered=True"
+    },
+    {
+      "id": "sf_bq349",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 17 at position 33\ninvalid identifier 'B.\"geometry\"'"
+    },
+    {
+      "id": "sf_bq358",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 5 at position 8\ninvalid identifier 'G.\"date\"'"
+    },
+    {
+      "id": "sf_bq359",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=2; pred_row_count=2; ordered=True"
+    },
+    {
+      "id": "sf_bq377",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=28; pred_row_count=28; ordered=True"
+    },
+    {
+      "id": "sf_bq390",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=23; pred_row_count=0; ordered=False"
+    },
+    {
+      "id": "sf_bq412",
+      "EX": 0,
+      "error": "pred_execution_error: 001072 (42601): SQL compilation error:\nLateral View cannot be on the left side of join"
+    },
+    {
+      "id": "sf_bq421",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 3 at position 4\ninvalid identifier 'D.SOPINSTANCEUID'"
+    },
+    {
+      "id": "sf_bq422",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=2; pred_row_count=2; ordered=True"
+    },
+    {
+      "id": "sf_bq429",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=5; pred_row_count=5; ordered=True"
+    },
+    {
+      "id": "sf_bq444",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=10; pred_row_count=0; ordered=True"
+    },
+    {
+      "id": "sf_bq455",
+      "EX": 0,
+      "error": "pred_execution_error: 001003 (42000): SQL compilation error:\nsyntax error line 13 at position 52 unexpected '<EOF>'."
+    },
+    {
+      "id": "sf_ga001",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=1; pred_row_count=0; ordered=True"
+    },
+    {
+      "id": "sf_local003",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=9; pred_row_count=0; ordered=True"
+    },
+    {
+      "id": "sf_local004",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=3; pred_row_count=3; ordered=True"
+    },
+    {
+      "id": "sf_local009",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=1; pred_row_count=1; ordered=False"
+    },
+    {
+      "id": "sf_local010",
+      "EX": 0,
+      "error": "gold_execution_error: Write, DDL, session, and administrative statements are not allowed."
+    },
+    {
+      "id": "sf_local015",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=2; pred_row_count=2; ordered=False"
+    },
+    {
+      "id": "sf_local019",
+      "EX": 0,
+      "error": "pred_execution_error: 001065 (22023): SQL compilation error:\nFunction TRY_CAST cannot be used with arguments of types NUMBER(38,0) and VARCHAR(134217728)"
+    },
+    {
+      "id": "sf_local022",
+      "EX": 1
+    },
+    {
+      "id": "sf_local026",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=3; pred_row_count=3; ordered=True"
+    },
+    {
+      "id": "sf_local028",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=12; pred_row_count=12; ordered=True"
+    },
+    {
+      "id": "sf_local030",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=1; pred_row_count=1; ordered=True"
+    },
+    {
+      "id": "sf_local038",
+      "EX": 1
+    },
+    {
+      "id": "sf_local039",
+      "EX": 0,
+      "error": "pred_execution_error: 001065 (22023): SQL compilation error:\nFunction TRY_CAST cannot be used with arguments of types NUMBER(38,0) and FLOAT"
+    },
+    {
+      "id": "sf_local056",
+      "EX": 1
+    },
+    {
+      "id": "sf_local064",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=1; pred_row_count=1; ordered=True"
+    },
+    {
+      "id": "sf_local075",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=9; pred_row_count=9; ordered=True"
+    },
+    {
+      "id": "sf_local157",
+      "EX": 0,
+      "error": "pred_execution_error: 002031 (42601): SQL compilation error:\nUnsupported subquery type cannot be evaluated"
+    },
+    {
+      "id": "sf_local194",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=600; pred_row_count=600; ordered=True"
+    },
+    {
+      "id": "sf_local195",
+      "EX": 0,
+      "error": "pred_execution_error: 000979 (42601): SQL compilation error:\n[T.TOTAL_CUSTOMERS] is not a valid group by expression"
+    },
+    {
+      "id": "sf_local199",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=2; pred_row_count=2; ordered=True"
+    },
+    {
+      "id": "sf_local209",
+      "EX": 1
+    },
+    {
+      "id": "sf_local210",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=21; pred_row_count=21; ordered=True"
+    },
+    {
+      "id": "sf_local218",
+      "EX": 1
+    },
+    {
+      "id": "sf_local244",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=3; pred_row_count=3; ordered=True"
+    },
+    {
+      "id": "sf_local263",
+      "EX": 1
+    },
+    {
+      "id": "sf_local269",
+      "EX": 0,
+      "error": "pred_execution_error: 000904 (42000): SQL compilation error: error line 2 at position 18\ninvalid identifier 'PACKAGING_ID'"
+    },
+    {
+      "id": "sf_local283",
+      "EX": 1
+    },
+    {
+      "id": "sf_local285",
+      "EX": 0,
+      "error": "pred_execution_error: 001104 (42601): SQL compilation error: error line 33 at position 11\n'C.\"category_name\"' in select clause is neither an aggregate nor in the group by clause."
+    },
+    {
+      "id": "sf_local299",
+      "EX": 0,
+      "error": "pred_execution_error: 001015 (22023): SQL compilation error:\nargument 1 to function GENERATOR needs to be constant, found '(CAST(DATE_DIFFDATEINDAYS(SYS_VW.MIN_D_1, SYS_VW.MAX_D_0) AS NUMBER(9,0))) + 1'"
+    },
+    {
+      "id": "sf_local300",
+      "EX": 0,
+      "error": "pred_execution_error: 001015 (22023): SQL compilation error:\nargument 1 to function GENERATOR needs to be constant, found '(CAST(DATE_DIFFDATEINDAYS(SYS_VW.\"min_dt_1\", SYS_VW.\"max_dt_0\") AS NUMBER(9,0))) + 1'"
+    },
+    {
+      "id": "sf_local309",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=75; pred_row_count=75; ordered=True"
+    },
+    {
+      "id": "sf_local311",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=3; pred_row_count=3; ordered=True"
+    },
+    {
+      "id": "sf_local329",
+      "EX": 1
+    },
+    {
+      "id": "sf_local336",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=4; pred_row_count=4; ordered=True"
+    },
+    {
+      "id": "sf_local354",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=248; pred_row_count=248; ordered=True"
+    },
+    {
+      "id": "sf_local355",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=1; pred_row_count=1; ordered=True"
+    },
+    {
+      "id": "sf_local360",
+      "EX": 0,
+      "error": "result_mismatch; gold_row_count=9; pred_row_count=9; ordered=True"
+    }
+  ]
+}

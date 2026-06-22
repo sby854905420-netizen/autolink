@@ -11,7 +11,13 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from cost_tool import SampleCostRecorder, extract_token_count
-from llm_backends import default_context_length_for_model, chat_with_model
+from llm_backends import (
+    DEFAULT_OPENAI_CONTEXT_LENGTH,
+    DEFAULT_OPENAI_MAX_OUTPUT_TOKENS,
+    DEFAULT_OPENAI_MODEL_NAME,
+    default_context_length_for_model,
+    chat_with_model,
+)
 from progress_logger import get_progress_logger, progress_bar, setup_progress_logging
 from utils import (
     DEFAULT_DATASET_NAME,
@@ -26,10 +32,15 @@ from utils import (
 )
 
 
-DEFAULT_SQL_LLM_NAME = "mistralai/Ministral-3-14B-Instruct-2512"
+DEFAULT_SCHEMA_LLM_NAME = "mistralai/Ministral-3-14B-Instruct-2512"
+DEFAULT_SQL_LLM_NAME = os.environ.get("OPENAI_MODEL") or os.environ.get("GPT_MODEL") or DEFAULT_OPENAI_MODEL_NAME
 DEFAULT_SQL_MAX_NEW_TOKENS = 4096
 DEFAULT_SQL_PROMPT_PATH = Path(__file__).resolve().parent / "sql_generation.txt"
 DEFAULT_SCHEMA_SOURCE_FILE = "merge_candidates.json"
+
+
+def is_openai_model_name(model_name: str) -> bool:
+    return (model_name or "").strip().lower().startswith("gpt-")
 
 
 def parse_args() -> argparse.Namespace:
@@ -46,19 +57,39 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--schema_model_name",
-        default=DEFAULT_SQL_LLM_NAME,
+        default=DEFAULT_SCHEMA_LLM_NAME,
         help="Model directory name used to locate schema-linking logs when --log_path is omitted.",
+    )
+    parser.add_argument(
+        "--answer_llm_name",
+        default=DEFAULT_SQL_LLM_NAME,
+        help="Model used to generate final SQL. gpt-* models use the OpenAI backend.",
     )
     parser.add_argument("--schema_source_file", default=DEFAULT_SCHEMA_SOURCE_FILE)
     parser.add_argument("--schema_prompts_dir", type=Path, default=None)
     parser.add_argument("--prompt_path", type=Path, default=DEFAULT_SQL_PROMPT_PATH)
+    parser.add_argument(
+        "--output_dir",
+        type=Path,
+        default=None,
+        help=(
+            "Directory for SQL generation results. If omitted, results are saved under "
+            "Log/sql_results/<dataset_name>/<model_name>/."
+        ),
+    )
     parser.add_argument("--output_path", type=Path, default=None)
     parser.add_argument("--sql_dialect", default=None)
     parser.add_argument("--hf_context_length", type=int, default=None)
     parser.add_argument(
         "--hf_max_new_tokens",
+        "--max_output_tokens",
         type=int,
-        default=int(os.environ.get("HF_MAX_NEW_TOKENS", str(DEFAULT_SQL_MAX_NEW_TOKENS))),
+        default=int(
+            os.environ.get("OPENAI_MAX_OUTPUT_TOKENS")
+            or os.environ.get("HF_MAX_NEW_TOKENS")
+            or str(DEFAULT_SQL_MAX_NEW_TOKENS)
+        ),
+        dest="hf_max_new_tokens",
     )
     parser.add_argument("--start_index", type=int, default=0)
     parser.add_argument("--limit", type=int, default=None)
@@ -125,14 +156,25 @@ def resolve_log_path(args: argparse.Namespace, dataset_name: str) -> Path:
     )
 
 
-def resolve_output_path(output_path: Path | None, log_path: Path, dataset_name: str) -> Path:
+def resolve_output_path(
+    output_path: Path | None,
+    output_dir: Path | None,
+    dataset_name: str,
+    model_name: str,
+) -> Path:
     if output_path is not None:
         resolved = output_path.resolve()
         resolved.parent.mkdir(parents=True, exist_ok=True)
         return resolved
 
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-    save_dir = log_path / "sql_results"
+    save_dir = (output_dir.resolve() if output_dir is not None else (
+        Path(PROJECT_ROOT)
+        / "Log"
+        / "sql_results"
+        / safe_path_component(dataset_name)
+        / safe_path_component(model_name)
+    ))
     save_dir.mkdir(parents=True, exist_ok=True)
     return save_dir / f"sql_generation_{dataset_name}_{run_id}.json"
 
@@ -141,17 +183,30 @@ def default_sql_dialect_requirements(dataset_name: str) -> str:
     dialect = get_sql_dialect(dataset_name)
     if dialect == "sqlite":
         return (
-            "Use SQLite SQL. The AutoLink MMQA global schema may show tables as "
-            "database_id.table_name; reference them with SQLite attached-database "
-            "notation such as \"database_id\".\"table_name\" when needed. Do not use "
-            "Snowflake-only syntax."
+            "Use SQLite SQL for MMQA. MMQA uses compact Spider-style SQLite databases. "
+            "Use only SQLite-compatible syntax and functions. Use strftime/date/datetime "
+            "for date logic when needed. Use table and column names exactly as shown in "
+            "the schema excerpt. If the AutoLink schema excerpt shows tables as "
+            "database_id.table_name, reference them with SQLite attached-database notation "
+            "such as \"database_id\".\"table_name\" when needed. Do not use Snowflake-only "
+            "features such as QUALIFY, ILIKE, TRY_CAST, DATEADD, DATEDIFF, TO_DATE, "
+            "TRUE/FALSE boolean literals, :: casts, or warehouse-style DATABASE.SCHEMA.TABLE "
+            "qualification unless that qualification is literally part of a provided SQLite "
+            "table name."
         )
     if dialect == "snowflake":
         return (
-            "Use Snowflake SQL. Preserve fully qualified table names exactly as shown, "
-            "usually DATABASE.SCHEMA.TABLE. Snowflake features such as CTEs, QUALIFY, "
-            "ILIKE, DATEADD, DATEDIFF, TRY_CAST, TO_DATE, TRUE/FALSE boolean literals, "
-            "and :: casts are allowed when useful. Do not write SQLite-specific SQL."
+            "Use Snowflake SQL for Spider2. Spider2 uses large Snowflake warehouse databases, "
+            "often with fully qualified table names. Preserve every table and column name exactly "
+            "as shown in the schema excerpt. Any Snowflake identifier containing lowercase letters, "
+            "mixed case, spaces, or special characters must be double-quoted. Quote each part of "
+            "a mixed-case fully qualified table name separately, for example "
+            "\"DATABASE\".\"SCHEMA\".\"MixedCaseTable\". Reference mixed-case columns as "
+            "alias.\"ColumnName\". Do not write DATABASE.SCHEMA.MixedCaseTable or alias.ColumnName "
+            "for mixed-case objects because Snowflake will uppercase unquoted identifiers. "
+            "Snowflake features such as CTEs, QUALIFY, ILIKE, DATEADD, DATEDIFF, TRY_CAST, "
+            "TO_DATE, TRUE/FALSE boolean literals, and :: casts are allowed when useful. "
+            "Do not write SQLite-specific SQL."
         )
     return f"Use {dialect} SQL."
 
@@ -197,20 +252,31 @@ def normalize_sql_response(response_text: str) -> str:
     return re.sub(r"^\s*SQL\s*:\s*", "", text, flags=re.IGNORECASE).strip()
 
 
-def configure_fixed_hf_model(context_length: int | None, max_new_tokens: int) -> int:
+def configure_answer_model(model_name: str, context_length: int | None, max_new_tokens: int) -> tuple[str, int, str]:
+    if is_openai_model_name(model_name):
+        resolved_context_length = (
+            context_length if context_length is not None else DEFAULT_OPENAI_CONTEXT_LENGTH
+        )
+        os.environ["LLM_BACKEND"] = "openai"
+        os.environ["OPENAI_MODEL"] = model_name
+        os.environ["OPENAI_CONTEXT_LENGTH"] = str(resolved_context_length)
+        os.environ["OPENAI_MAX_OUTPUT_TOKENS"] = str(max_new_tokens or DEFAULT_OPENAI_MAX_OUTPUT_TOKENS)
+        return "openai", resolved_context_length, "openai_max_output_tokens"
+
     resolved_context_length = (
         context_length
         if context_length is not None
-        else default_context_length_for_model(DEFAULT_SQL_LLM_NAME)
+        else default_context_length_for_model(model_name)
     )
 
-    os.environ["HF_MODEL_NAME"] = DEFAULT_SQL_LLM_NAME
+    os.environ["LLM_BACKEND"] = "hf_transformers"
+    os.environ["HF_MODEL_NAME"] = model_name
     os.environ["HF_CONTEXT_LENGTH"] = str(resolved_context_length)
     os.environ["HF_MAX_NEW_TOKENS"] = str(max_new_tokens)
     os.environ["HF_DO_SAMPLE"] = "false"
     os.environ["HF_TEMPERATURE"] = "0.0"
     os.environ["HF_TOP_P"] = "1.0"
-    return resolved_context_length
+    return "hf_transformers", resolved_context_length, "hf_max_new_tokens"
 
 
 def load_dataset_index(dataset_name: str) -> dict[str, dict[str, Any]]:
@@ -459,11 +525,17 @@ def run_sql_generation(args: argparse.Namespace) -> Path:
     if not prompt_path.is_file():
         raise FileNotFoundError(f"SQL prompt template not found: {prompt_path}")
 
-    context_length = configure_fixed_hf_model(
+    answer_backend, context_length, token_budget_name = configure_answer_model(
+        model_name=args.answer_llm_name,
         context_length=args.hf_context_length,
         max_new_tokens=args.hf_max_new_tokens,
     )
-    output_path = resolve_output_path(args.output_path, log_path, dataset_name)
+    output_path = resolve_output_path(
+        output_path=args.output_path,
+        output_dir=args.output_dir,
+        dataset_name=dataset_name,
+        model_name=args.answer_llm_name,
+    )
     setup_progress_logging(str(output_path.parent))
     logger = get_progress_logger(__name__)
 
@@ -489,7 +561,8 @@ def run_sql_generation(args: argparse.Namespace) -> Path:
     run_info = {
         "task": "sql_generation",
         "dataset_name": dataset_name,
-        "model": DEFAULT_SQL_LLM_NAME,
+        "model": args.answer_llm_name,
+        "provider": answer_backend,
         "schema_source_model": args.schema_model_name,
         "schema_log_path": str(log_path),
         "schema_source_path": str(schema_source_path) if schema_source_path.is_file() else None,
@@ -498,8 +571,8 @@ def run_sql_generation(args: argparse.Namespace) -> Path:
         "dataset_path": get_dataset_file(dataset_name),
         "documents_dir": get_documents_dir(dataset_name),
         "sql_dialect": sql_dialect,
-        "hf_context_length": context_length,
-        "hf_max_new_tokens": args.hf_max_new_tokens,
+        "context_length": context_length,
+        token_budget_name: args.hf_max_new_tokens,
         "start_index": args.start_index,
         "limit": args.limit,
         "instance_ids": args.instance_id,
@@ -510,7 +583,7 @@ def run_sql_generation(args: argparse.Namespace) -> Path:
     logger.info(
         "SQL generation started | dataset=%s model=%s samples=%s log_path=%s output=%s",
         dataset_name,
-        DEFAULT_SQL_LLM_NAME,
+        args.answer_llm_name,
         len(instance_ids),
         log_path,
         output_path,

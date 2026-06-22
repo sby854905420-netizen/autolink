@@ -3,6 +3,7 @@ faiss-cpu==1.13.2
 numpy==2.3.5
 pandas==2.3.3
 tqdm==4.67.3
+openai>=1.99.0
 
 # Embedding and local Hugging Face model backends.
 sentence-transformers==5.4.1

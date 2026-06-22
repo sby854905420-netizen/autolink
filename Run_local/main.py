@@ -12,6 +12,9 @@ from utils import (
 from llm_backends import (
     DEFAULT_HF_MAX_NEW_TOKENS,
     DEFAULT_HF_MODEL_NAME,
+    DEFAULT_OPENAI_CONTEXT_LENGTH,
+    DEFAULT_OPENAI_MAX_OUTPUT_TOKENS,
+    DEFAULT_OPENAI_MODEL_NAME,
     default_context_length_for_model,
 )
 from progress_logger import log_run_header, log_stage, setup_progress_logging
@@ -24,11 +27,20 @@ def optional_env_int(name: str) -> int | None:
     return int(value)
 
 
+def is_openai_model_name(model_name: str) -> bool:
+    return (model_name or "").strip().lower().startswith("gpt-")
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Run the local AutoLink pipeline.")
     parser.add_argument("dataset", nargs="?", default=None)
     parser.add_argument("--dataset_name", default=None)
     parser.add_argument("--hf_model_name", default=os.environ.get("HF_MODEL_NAME", DEFAULT_HF_MODEL_NAME))
+    parser.add_argument(
+        "--llm_model_name",
+        default=os.environ.get("OPENAI_MODEL") or os.environ.get("GPT_MODEL"),
+        help="Optional model name override. gpt-* values use the OpenAI backend.",
+    )
     parser.add_argument(
         "--hf_context_length",
         type=int,
@@ -37,7 +49,11 @@ def parse_args():
     parser.add_argument(
         "--hf_max_new_tokens",
         type=int,
-        default=int(os.environ.get("HF_MAX_NEW_TOKENS", str(DEFAULT_HF_MAX_NEW_TOKENS))),
+        default=int(
+            os.environ.get("OPENAI_MAX_OUTPUT_TOKENS")
+            or os.environ.get("HF_MAX_NEW_TOKENS")
+            or str(DEFAULT_HF_MAX_NEW_TOKENS)
+        ),
     )
     parser.add_argument("--top_n", type=int, default=int(os.environ.get("TOP_N", "100")))
     parser.add_argument("--num_threads", type=int, default=int(os.environ.get("NUM_THREADS", "1")))
@@ -71,15 +87,26 @@ def run_pipeline(
     require_dataset_file(dataset_name)
     require_local_embedding_index(dataset_name)
 
-    resolved_hf_context_length = (
-        hf_context_length
-        if hf_context_length is not None
-        else default_context_length_for_model(hf_model_name)
-    )
-
-    os.environ["HF_MODEL_NAME"] = hf_model_name
-    os.environ["HF_CONTEXT_LENGTH"] = str(resolved_hf_context_length)
-    os.environ["HF_MAX_NEW_TOKENS"] = str(hf_max_new_tokens)
+    if is_openai_model_name(hf_model_name):
+        resolved_hf_context_length = (
+            hf_context_length
+            if hf_context_length is not None
+            else int(os.environ.get("OPENAI_CONTEXT_LENGTH", str(DEFAULT_OPENAI_CONTEXT_LENGTH)))
+        )
+        os.environ["LLM_BACKEND"] = "openai"
+        os.environ["OPENAI_MODEL"] = hf_model_name or DEFAULT_OPENAI_MODEL_NAME
+        os.environ["OPENAI_CONTEXT_LENGTH"] = str(resolved_hf_context_length)
+        os.environ["OPENAI_MAX_OUTPUT_TOKENS"] = str(hf_max_new_tokens or DEFAULT_OPENAI_MAX_OUTPUT_TOKENS)
+    else:
+        resolved_hf_context_length = (
+            hf_context_length
+            if hf_context_length is not None
+            else default_context_length_for_model(hf_model_name)
+        )
+        os.environ["LLM_BACKEND"] = "hf_transformers"
+        os.environ["HF_MODEL_NAME"] = hf_model_name
+        os.environ["HF_CONTEXT_LENGTH"] = str(resolved_hf_context_length)
+        os.environ["HF_MAX_NEW_TOKENS"] = str(hf_max_new_tokens)
 
     resolved_log_path = prepare_log_dir(
         log_path=log_path,
@@ -133,7 +160,7 @@ if __name__ == "__main__":
     try:
         run_pipeline(
             dataset_name=resolve_dataset_name(args),
-            hf_model_name=args.hf_model_name,
+            hf_model_name=args.llm_model_name or args.hf_model_name,
             hf_context_length=args.hf_context_length,
             hf_max_new_tokens=args.hf_max_new_tokens,
             top_n=args.top_n,
